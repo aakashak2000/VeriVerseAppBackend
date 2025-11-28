@@ -350,6 +350,37 @@ export async function registerRoutes(
     }
   });
 
+  // Add a note to a vote on a claim
+  app.post("/api/claims/:claimId/votes/:userId/note", async (req: Request, res: Response) => {
+    try {
+      const { claimId, userId: voteUserId } = req.params;
+      
+      const addVoteNoteSchema = z.object({
+        note: z.string().min(1).max(500),
+      });
+
+      const parsed = addVoteNoteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const { note } = parsed.data;
+
+      const success = await storage.addVoteNote(claimId, voteUserId, note);
+      if (!success) {
+        return res.status(404).json({ error: "Vote not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error adding vote note:", error);
+      res.status(500).json({ error: "Failed to add vote note" });
+    }
+  });
+
   // Seed demo data on startup
   app.post("/api/seed", async (req: Request, res: Response) => {
     try {

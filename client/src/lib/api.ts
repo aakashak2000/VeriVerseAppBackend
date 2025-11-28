@@ -356,12 +356,10 @@ const DEMO_FEED: FeedClaim[] = [
     credibility_score: 0.89,
     relevancy_score: 0.92,
     votes: [
-      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"] },
-      { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy", match_reasons: ["domain_expert"] },
+      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"], note: "I've tracked Apple's India expansion for years - this aligns with their stated plans." },
+      { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy", match_reasons: ["domain_expert"], note: "I've seen construction activity near the proposed site in Bangalore." },
     ],
-    community_notes: [
-      { id: "note_1", note: "I've seen construction activity near the proposed site.", created_at: new Date(Date.now() - 1800000).toISOString(), author: { id: "demo_parth", name: "Parth Joshi", location: "Gujarat" } },
-    ],
+    community_notes: [],
   },
   {
     id: "demo_claim_2",
@@ -382,12 +380,10 @@ const DEMO_FEED: FeedClaim[] = [
     credibility_score: 0.93,
     relevancy_score: 0.95,
     votes: [
-      { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Finance", location: "Nagpur", vote: 1, weight: 0.92, rationale: "Verified through RBI publications", match_reasons: ["domain_expert", "verified_professional"] },
-      { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends", match_reasons: ["domain_expert"] },
+      { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Finance", location: "Nagpur", vote: 1, weight: 0.92, rationale: "Verified through RBI publications", match_reasons: ["domain_expert", "verified_professional"], note: "RBI has been actively publishing research on this. The pilot is already underway in select districts." },
+      { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends", match_reasons: ["domain_expert"], note: "This aligns with the Digital India financial inclusion initiatives I've been following." },
     ],
-    community_notes: [
-      { id: "note_2", note: "RBI has been actively publishing research on this. The pilot is already underway.", created_at: new Date(Date.now() - 3600000).toISOString(), author: { id: "demo_aneesha", name: "Aneesha Manke", location: "Nagpur" } },
-    ],
+    community_notes: [],
   },
   {
     id: "demo_claim_3",
@@ -408,7 +404,7 @@ const DEMO_FEED: FeedClaim[] = [
     credibility_score: 0.85,
     relevancy_score: 0.78,
     votes: [
-      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"] },
+      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"], note: "Major League Cricket's success seems to be driving BCCI's interest in the US market." },
     ],
     community_notes: [],
   },
@@ -506,6 +502,27 @@ export async function addCommunityNote(claimId: string, userId: string, note: st
     }
   } catch (error) {
     console.log("Note added in demo mode");
+  }
+}
+
+// Add a note to an existing vote
+export async function addVoteNote(claimId: string, voteUserId: string, note: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE}/api/claims/${claimId}/votes/${voteUserId}/note`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ note }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to add vote note");
+    }
+    return true;
+  } catch (error) {
+    console.log("Vote note added in demo mode");
+    return true;
   }
 }
 

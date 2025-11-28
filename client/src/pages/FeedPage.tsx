@@ -171,51 +171,58 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
         )}
 
         {claim.votes && claim.votes.length > 0 && (
-          <div className="space-y-2 mb-4" data-testid={`votes-section-${claim.id}`}>
-            <p className="text-sm font-medium text-muted-foreground">
-              Expert Votes ({claim.votes.length})
-            </p>
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-1 text-green-600 dark:text-green-400" data-testid={`upvotes-${claim.id}`}>
-                <ThumbsUp className="h-4 w-4" />
-                <span className="text-sm font-medium">{upvotes}</span>
-              </div>
-              <div className="flex items-center gap-1 text-red-600 dark:text-red-400" data-testid={`downvotes-${claim.id}`}>
-                <ThumbsDown className="h-4 w-4" />
-                <span className="text-sm font-medium">{downvotes}</span>
-              </div>
-              {topVoter && (
-                <div className="text-xs text-muted-foreground" data-testid={`top-voter-${claim.id}`}>
-                  Top expert: <span className="font-medium">{topVoter.name}</span> ({topVoter.domain})
+          <div className="space-y-3 mb-4" data-testid={`votes-section-${claim.id}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                Expert Votes ({claim.votes.length})
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400" data-testid={`upvotes-${claim.id}`}>
+                  <ThumbsUp className="h-4 w-4" />
+                  <span className="text-sm font-medium">{upvotes}</span>
                 </div>
-              )}
+                <div className="flex items-center gap-1 text-red-600 dark:text-red-400" data-testid={`downvotes-${claim.id}`}>
+                  <ThumbsDown className="h-4 w-4" />
+                  <span className="text-sm font-medium">{downvotes}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-
-        {claim.community_notes && claim.community_notes.length > 0 && (
-          <div className="border-t pt-3 mt-3" data-testid={`notes-section-${claim.id}`}>
-            <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
-              <MessageSquare className="h-4 w-4" />
-              Community Notes ({claim.community_notes.length})
-            </p>
             <div className="space-y-2">
-              {claim.community_notes.map((note: CommunityNoteWithAuthor) => (
-                <div key={note.id} className="bg-muted/50 dark:bg-muted/30 rounded-lg p-3" data-testid={`note-${note.id}`}>
-                  <div className="flex items-center gap-2 mb-1">
+              {claim.votes.map((vote: Vote) => (
+                <div 
+                  key={vote.user_id} 
+                  className={`rounded-lg p-3 ${vote.vote === 1 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}
+                  data-testid={`vote-${vote.user_id}`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                        {note.author?.name ? getInitials(note.author.name) : "?"}
+                        {getInitials(vote.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium">{note.author?.name || "Anonymous"}</span>
-                    {note.created_at && (
-                      <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
+                    <span className="text-sm font-medium">{vote.name}</span>
+                    <Badge variant="secondary" className="text-xs">{vote.domain}</Badge>
+                    {vote.location && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {vote.location}
                       </span>
                     )}
+                    {vote.vote === 1 ? (
+                      <ThumbsUp className="h-4 w-4 text-green-600 dark:text-green-400 ml-auto" />
+                    ) : (
+                      <ThumbsDown className="h-4 w-4 text-red-600 dark:text-red-400 ml-auto" />
+                    )}
                   </div>
-                  <p className="text-sm text-foreground">{note.note}</p>
+                  <p className="text-sm text-muted-foreground mb-1">{vote.rationale}</p>
+                  {vote.note && (
+                    <div className="mt-2 pt-2 border-t border-border/50">
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-foreground" data-testid={`vote-note-${vote.user_id}`}>{vote.note}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
