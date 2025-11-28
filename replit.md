@@ -76,10 +76,11 @@ Preferred communication style: Simple, everyday language.
 - Zod schemas for validation using `drizzle-zod`
 
 **User Authentication**:
-- Simple localStorage-based user identification for onboarding flow
-- User ID stored in localStorage after signup (key: `veriverse_user_id`)
-- Layout checks both Replit auth and localStorage for user status
-- Demo fallbacks when user has no history or backend is unavailable
+- Password-based login using login_id and passwordHash fields
+- User credentials stored in localStorage after successful login (key: `veriverse_user`)
+- Layout checks localStorage for logged-in user status
+- Demo users seeded with passwords: aakash (aakash123), aneesha (aneesha123), shaurya (shaurya123), parth (parth123)
+- Login page at /login with form validation
 
 **Storage Abstraction**: `IStorage` interface in `server/storage.ts` with in-memory implementation (`MemStorage`) for development. This abstraction allows swapping to database-backed storage without changing business logic.
 
