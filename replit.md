@@ -25,6 +25,7 @@ Preferred communication style: Simple, everyday language.
 - `/ask` - Interactive claim verification interface (accessible without signup)
 - `/history` - User's past claims with demo fallback for new users
 - `/verify` - Community leaderboard and trust board with scoring explanation
+- `/feed` - Community feed showing all claims with sorting (relevant/latest), expert votes, and community notes
 
 **State Management**: React Query (@tanstack/react-query) for server state management with configured defaults for refetching behavior and stale time.
 
@@ -50,6 +51,10 @@ Preferred communication style: Simple, everyday language.
 - `POST /api/users` - Create new user profile during signup
 - `GET /api/users/:id` - Get user profile by ID
 - `GET /api/users/:id/history` - Get user's claim history
+- `GET /api/claims` - Get all claims for community feed (supports ?sort=relevant|latest)
+- `POST /api/claims` - Create a new claim for verification
+- `POST /api/claims/:id/notes` - Add a community note to a claim
+- `POST /api/seed` - Seed demo data (4 expert users, 8 claims with votes and notes)
 
 **Fallback/Demo Mode**: The frontend API client (`client/src/lib/api.ts`) includes built-in demo data that activates when the FastAPI backend is unavailable, ensuring the application remains functional for demonstration purposes.
 
