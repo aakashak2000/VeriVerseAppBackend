@@ -150,18 +150,67 @@ export class DatabaseStorage implements IStorage {
     const allClaims = await db
       .select()
       .from(claims)
-      .orderBy(sort === "latest" ? desc(claims.createdAt) : desc(claims.relevancyScore));
+      .orderBy(desc(claims.createdAt));
+
+    const viewer = viewerId ? await this.getUser(viewerId) : null;
+    const viewerExpertise = (viewer?.expertiseTags as string[]) || [];
+    const viewerLocation = viewer?.location?.toLowerCase() || "";
+    const viewerTopicPrecision = (viewer?.topicPrecision as Record<string, number>) || {};
 
     const feedClaims: FeedClaim[] = [];
 
     for (const claim of allClaims) {
       const author = claim.userId ? await this.getUser(claim.userId) : null;
       const notes = await this.getClaimNotes(claim.id);
+      const claimTopics = (claim.topics as string[]) || [];
+      const claimLocation = claim.location?.toLowerCase() || "";
+
+      let relevancyScore = claim.relevancyScore || 0.3;
+
+      if (viewer) {
+        let dynamicRelevancy = 0;
+        let factors = 0;
+
+        const matchingTopics = claimTopics.filter(topic => 
+          viewerExpertise.some(exp => 
+            exp.toLowerCase() === topic.toLowerCase()
+          )
+        );
+        if (matchingTopics.length > 0) {
+          const topicScore = Math.min(matchingTopics.length / claimTopics.length, 1);
+          dynamicRelevancy += topicScore * 0.5;
+          factors++;
+        }
+
+        if (claimLocation && viewerLocation && 
+            (claimLocation.includes(viewerLocation) || viewerLocation.includes(claimLocation))) {
+          dynamicRelevancy += 0.3;
+          factors++;
+        }
+
+        const topicPrecisionScores = matchingTopics.map(topic => {
+          const normalizedTopic = Object.keys(viewerTopicPrecision).find(
+            k => k.toLowerCase() === topic.toLowerCase()
+          );
+          return normalizedTopic ? viewerTopicPrecision[normalizedTopic] : 0;
+        });
+        if (topicPrecisionScores.length > 0) {
+          const avgPrecision = topicPrecisionScores.reduce((a, b) => a + b, 0) / topicPrecisionScores.length;
+          dynamicRelevancy += avgPrecision * 0.2;
+          factors++;
+        }
+
+        if (factors > 0) {
+          relevancyScore = Math.min(dynamicRelevancy + 0.2, 1);
+        } else {
+          relevancyScore = 0.3;
+        }
+      }
 
       feedClaims.push({
         id: claim.id,
         text: claim.prompt,
-        topics: (claim.topics as string[]) || [],
+        topics: claimTopics,
         location: claim.location || undefined,
         created_at: claim.createdAt?.toISOString() || new Date().toISOString(),
         run_id: claim.runId || undefined,
@@ -177,10 +226,14 @@ export class DatabaseStorage implements IStorage {
         provisional_answer: claim.provisionalAnswer || undefined,
         confidence: claim.confidence || 0,
         credibility_score: claim.credibilityScore || 0,
-        relevancy_score: claim.relevancyScore || 0,
+        relevancy_score: relevancyScore,
         votes: (claim.votes as Vote[]) || [],
         community_notes: notes,
       });
+    }
+
+    if (sort === "relevant") {
+      feedClaims.sort((a, b) => b.relevancy_score - a.relevancy_score);
     }
 
     return feedClaims;

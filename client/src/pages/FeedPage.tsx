@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchClaims, addCommunityNote, getStoredUserId } from "@/lib/api";
+import { fetchClaims, addCommunityNote, getStoredUserId, getLoggedInUser } from "@/lib/api";
 import type { FeedClaim, Vote, CommunityNoteWithAuthor } from "@shared/schema";
 import { 
   Clock, 
@@ -322,7 +322,9 @@ function ClaimCardSkeleton() {
 export default function FeedPage() {
   const queryClient = useQueryClient();
   const [sortBy, setSortBy] = useState<"relevant" | "latest">("relevant");
-  const userId = getStoredUserId();
+  const storedUserId = getStoredUserId();
+  const loggedInUser = getLoggedInUser();
+  const userId = loggedInUser?.user_id || storedUserId;
 
   const { data: claims = [], isLoading, isError } = useQuery<FeedClaim[]>({
     queryKey: ["/api/claims", sortBy, userId],
