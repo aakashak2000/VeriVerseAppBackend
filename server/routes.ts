@@ -222,25 +222,51 @@ export async function registerRoutes(
 
   // ========== COMMUNITY FEED ROUTES ==========
 
-  // Get all claims for the feed
+  // Get all claims for the feed (enriched with latest run data from FastAPI)
   app.get("/api/claims", async (req: Request, res: Response) => {
     try {
       const sort = (req.query.sort as string) === "latest" ? "latest" : "relevant";
       const userId = req.query.userId as string | undefined;
       
       const claims = await storage.getAllClaims(sort, userId);
-      res.json(claims);
+      
+      // Enrich each claim with fresh run data from FastAPI (if available)
+      const enrichedClaims = await Promise.all(
+        claims.map(async (claim) => {
+          if (claim.run_id) {
+            try {
+              const runResponse = await fetch(`${FASTAPI_BASE}/runs/${claim.run_id}`);
+              if (runResponse.ok) {
+                const runData = await runResponse.json();
+                return {
+                  ...claim,
+                  status: runData.status || claim.status,
+                  provisional_answer: runData.provisional_answer || claim.provisional_answer,
+                  confidence: runData.confidence ?? claim.confidence,
+                  votes: runData.votes || claim.votes,
+                };
+              }
+            } catch (e) {
+              // FastAPI unavailable, use stored data
+            }
+          }
+          return claim;
+        })
+      );
+      
+      res.json(enrichedClaims);
     } catch (error) {
       console.error("Error fetching claims:", error);
       res.status(500).json({ error: "Failed to fetch claims" });
     }
   });
 
-  // Create a new claim for the feed
+  // Create a new claim for the feed (stores locally AND triggers FastAPI)
   app.post("/api/claims", async (req: Request, res: Response) => {
     try {
       const createClaimSchema = z.object({
-        user_id: z.string().min(1),
+        user_id: z.string().optional(),
+        userId: z.string().optional(),
         text: z.string().min(1),
         topics: z.array(z.string()).optional().default([]),
         location: z.string().optional(),
@@ -254,16 +280,54 @@ export async function registerRoutes(
         });
       }
 
-      const { user_id, text, topics, location } = parsed.data;
+      const userId = parsed.data.user_id || parsed.data.userId || "anonymous";
+      const { text, topics, location } = parsed.data;
 
+      let runId: string | undefined;
+      let runData: any = {};
+
+      // Step 1: Try to create run in FastAPI (triggers AI verification)
+      try {
+        const fastApiResponse = await fetch(`${FASTAPI_BASE}/prompts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            prompt: text,
+            user_id: userId 
+          }),
+        });
+
+        if (fastApiResponse.ok) {
+          runData = await fastApiResponse.json();
+          runId = runData.run_id;
+        }
+      } catch (fastApiError) {
+        console.log("FastAPI unavailable, storing claim locally only");
+      }
+
+      // Step 2: Store claim in local DB with run link
       const claim = await storage.createClaim({
-        userId: user_id,
+        userId: userId,
         prompt: text,
+        runId: runId,
         topics: topics,
         location: location || null,
+        status: runData.status || "queued",
+        provisionalAnswer: runData.provisional_answer,
+        confidence: runData.confidence,
+        votes: runData.votes || [],
+        evidence: runData.evidence || [],
       });
 
-      res.json({ claim_id: claim.id });
+      res.json({
+        claim_id: claim.id,
+        run_id: runId,
+        status: runData.status || "queued",
+        provisional_answer: runData.provisional_answer,
+        confidence: runData.confidence,
+        votes: runData.votes || [],
+        evidence: runData.evidence || [],
+      });
     } catch (error) {
       console.error("Error creating claim:", error);
       res.status(500).json({ error: "Failed to create claim" });
