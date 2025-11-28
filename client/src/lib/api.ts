@@ -169,6 +169,61 @@ export function clearStoredUserId(): void {
   localStorage.removeItem(USER_ID_KEY);
 }
 
+// Login user
+export type LoginResult = {
+  user_id: string;
+  display_name: string;
+  location: string;
+  expertise: string[];
+  email: string | null;
+  precision: number;
+  points: number;
+  tier: string;
+  topic_precision: Record<string, number>;
+};
+
+const LOGGED_IN_USER_KEY = "veriverse_logged_in_user";
+
+export async function loginUser(loginId: string, password: string): Promise<LoginResult | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ login_id: loginId, password }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result = await response.json();
+    setStoredUserId(result.user_id);
+    localStorage.setItem(LOGGED_IN_USER_KEY, JSON.stringify(result));
+    return result;
+  } catch (error) {
+    return null;
+  }
+}
+
+export function getLoggedInUser(): LoginResult | null {
+  const stored = localStorage.getItem(LOGGED_IN_USER_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function logoutUser(): void {
+  clearStoredUserId();
+  localStorage.removeItem(LOGGED_IN_USER_KEY);
+}
+
 // Create user (signup)
 export async function createUser(data: SignupUser): Promise<{ user_id: string } & User> {
   try {
@@ -196,6 +251,8 @@ export async function createUser(data: SignupUser): Promise<{ user_id: string } 
       user_id: demoUserId,
       id: demoUserId,
       email: data.email || null,
+      loginId: null,
+      passwordHash: null,
       firstName: null,
       lastName: null,
       displayName: data.displayName,
@@ -232,6 +289,8 @@ export async function getUser(userId: string): Promise<User | null> {
       return {
         id: userId,
         email: null,
+        loginId: null,
+        passwordHash: null,
         firstName: null,
         lastName: null,
         displayName: "Demo User",

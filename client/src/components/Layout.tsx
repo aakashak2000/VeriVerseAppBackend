@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { getStoredUserId, clearStoredUserId } from "@/lib/api";
+import { getStoredUserId, getLoggedInUser, logoutUser, type LoginResult } from "@/lib/api";
 import logoImage from "@assets/image_1764363691423.png";
 
 function ThemeToggle() {
@@ -56,18 +56,22 @@ function UserMenu() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [localUserId, setLocalUserId] = useState<string | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<LoginResult | null>(null);
 
   useEffect(() => {
     setLocalUserId(getStoredUserId());
+    setLoggedInUser(getLoggedInUser());
   }, []);
 
   const handleSignOut = () => {
-    clearStoredUserId();
+    logoutUser();
     setLocalUserId(null);
+    setLoggedInUser(null);
     if (isAuthenticated) {
       window.location.href = "/api/logout";
     } else {
       setLocation("/");
+      window.location.reload();
     }
   };
 
@@ -77,30 +81,47 @@ function UserMenu() {
     );
   }
 
-  const hasUser = isAuthenticated || localUserId;
+  const hasUser = isAuthenticated || localUserId || loggedInUser;
 
   if (!hasUser) {
     return (
-      <Link href="/signup">
-        <Button
-          variant="outline"
-          size="sm"
-          data-testid="button-signup"
-        >
-          <UserPlus className="h-4 w-4 mr-2" />
-          Sign Up
-        </Button>
-      </Link>
+      <div className="flex items-center gap-2">
+        <Link href="/login">
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="button-login"
+          >
+            <LogIn className="h-4 w-4 mr-2" />
+            Log In
+          </Button>
+        </Link>
+        <Link href="/signup">
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-signup"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Sign Up
+          </Button>
+        </Link>
+      </div>
     );
   }
 
-  const initials = user?.firstName && user?.lastName 
-    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-    : user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
+  const initials = loggedInUser?.display_name?.[0]?.toUpperCase() || 
+    user?.firstName?.[0]?.toUpperCase() || 
+    user?.displayName?.[0]?.toUpperCase() || 
+    user?.email?.[0]?.toUpperCase() || "U";
 
-  const displayName = user?.firstName 
-    ? `${user.firstName} ${user.lastName || ""}` 
-    : user?.displayName || user?.email || "User";
+  const displayName = loggedInUser?.display_name || 
+    (user?.firstName ? `${user.firstName} ${user.lastName || ""}` : null) ||
+    user?.displayName || 
+    user?.email || 
+    "User";
+  
+  const userEmail = loggedInUser?.email || user?.email;
 
   return (
     <DropdownMenu>
@@ -126,8 +147,8 @@ function UserMenu() {
             <p className="text-sm font-medium" data-testid="user-name">
               {displayName}
             </p>
-            {user?.email && (
-              <p className="text-xs text-muted-foreground">{user.email}</p>
+            {userEmail && (
+              <p className="text-xs text-muted-foreground">{userEmail}</p>
             )}
           </div>
         </div>

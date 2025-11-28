@@ -9,6 +9,7 @@ import VerifyPage from "@/pages/VerifyPage";
 import HistoryPage from "@/pages/HistoryPage";
 import RewardsPage from "@/pages/RewardsPage";
 import SignupPage from "@/pages/SignupPage";
+import LoginPage from "@/pages/LoginPage";
 import FeedPage from "@/pages/FeedPage";
 import NotFound from "@/pages/not-found";
 
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/history" component={HistoryPage} />
       <Route path="/rewards" component={RewardsPage} />
       <Route path="/signup" component={SignupPage} />
+      <Route path="/login" component={LoginPage} />
       <Route component={NotFound} />
     </Switch>
   );
