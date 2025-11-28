@@ -1,0 +1,193 @@
+Build a very simple, functional web app frontend for a project called VeriVerse, which acts like a social media–style, agentic AI platform for misinformation detection.
+Tech & Setup
+Use React + Vite with TypeScript (JavaScript is fine if TS is too heavy, but keep the same file structure).
+Use TailwindCSS for styling.
+Minimal color palette:
+Background: #F8FAFC (very light gray/blue)
+Text: near-black #0F172A
+Accent: a single soft blue #2563EB for buttons, highlights, status.
+No gradients, no loud colors. Clean, almost “productivity app” feel.
+Add .env support with VITE_API_BASE (default to "http://localhost:8000" if not set).
+// src/api.ts
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
+Backend Integration (must match exactly)
+The backend already exists (FastAPI) and exposes these endpoints:
+POST /prompts
+Request body:
+{ "prompt": "some claim or news" }
+Response:
+{ "run_id": "run_123", "status": "queued" }
+GET /runs/{run_id}
+Response example:
+{
+  "run_id": "run_123",
+  "status": "in_progress",  // or queued | awaiting_votes | completed
+  "provisional_answer": "LLM + tools think this is likely true because…",
+  "confidence": 0.78,       // between 0 and 1
+  "votes": [
+    { "user_id": "u1", "vote": 1, "weight": 0.7, "rationale": "local witness" },
+    { "user_id": "u2", "vote": -1, "weight": 0.4, "rationale": "conflicting link" }
+  ],
+  "evidence": [
+    { "tool_name": "google_search", "content": "snippet or URL…" },
+    { "tool_name": "crawler", "content": "snippet or URL…" }
+  ]
+}
+GET /leaderboard
+Response example:
+{
+  "entries": [
+    { "user_id": "u1", "name": "Aarav", "precision": 0.91, "attempts": 37, "points": 1200, "tier": "Diamond" },
+    { "user_id": "u2", "name": "Maya", "precision": 0.84, "attempts": 21, "points": 980, "tier": "Platinum" }
+  ]
+}
+Implement a small API helper file src/api.ts with:
+createPrompt(prompt: string): Promise<{ run_id: string; status: string }>
+getRun(runId: string): Promise<RunState>
+getLeaderboard(): Promise<Leaderboard>
+Where:
+export type Vote = {
+  user_id: string;
+  vote: 1 | -1;
+  weight: number;
+  rationale: string;
+};
+
+export type Evidence = {
+  tool_name: string;
+  content: string;
+};
+
+export type RunState = {
+  run_id: string;
+  status: "queued" | "in_progress" | "awaiting_votes" | "completed";
+  provisional_answer: string;
+  confidence: number; // 0..1
+  votes: Vote[];
+  evidence: Evidence[];
+};
+
+export type LeaderboardEntry = {
+  user_id: string;
+  name: string;
+  precision: number; // 0..1
+  attempts: number;
+  points: number;
+  tier: string;      // "Bronze" | "Silver" | ...
+};
+
+export type Leaderboard = { entries: LeaderboardEntry[] };
+If a network call fails, just throw an error and handle it by showing a very simple error banner at the top (“Backend unavailable, running in demo mode”). You do not need complex mock data for this version.
+Routing & Pages
+Use React Router (or a very simple router) with three routes:
+/ – Landing page
+/ask – Ask/Analyze page (agentic workflow demo)
+/verify – Community page (leaderboard + recent run view)
+1) / – Landing Page
+Layout:
+Very simple, centered, full-width but with max-width ~800px.
+Top: Text logo “VeriVerse” (plain text, bold, small accent underline).
+Main hero block:
+Big headline: “Agentic AI + Community vs Misinformation”
+Subtext: one sentence: “Ask a claim, let AI verify with tools, and see how the community backs it up.”
+How it works (3 steps with icons in a horizontal row or vertical on mobile):
+Step 1: Ask – icon 💬 – “Paste any headline or claim.”
+Step 2: Verify – icon 🤖 – “Our agentic AI + tools investigate.”
+Step 3: Trust – icon 🧑‍🤝‍🧑 – “Peers upvote/downvote the answer.”
+CTA buttons:
+Primary button: “Try the Ask Demo” → navigate to /ask
+Secondary outline button: “See Community” → navigate to /verify
+Below CTAs:
+A simple metric strip with animated counter:
+Label: “Claims Verified”
+Number: start at 0 and animate up to 1,248 on mount using a light counter effect (e.g. requestAnimationFrame or setInterval over ~1.5s).
+All of this on a plain, light background with minimal blue accent.
+2) /ask – Ask / Agentic Flow Page
+This is the main “social + agentic AI” experience.
+Layout:
+Two stacked sections:
+Claim input card (looks like a social “compose post” box)
+A card with:
+Label: “Paste a claim or headline”
+Multi-line textarea
+Button: “Run Verification”
+On click:
+Call createPrompt(prompt) → get { run_id, status }
+Store run_id in component state.
+Immediately show a “Verifying…” status chip.
+Result card (social post style)
+If there is a run_id, start polling:
+Every 3 seconds, call GET /runs/{run_id} via getRun(runId).
+Update state with status, provisional_answer, confidence, votes, evidence.
+Show:
+Status pill with color:
+queued → gray
+in_progress → blue
+awaiting_votes → amber
+completed → green
+Main text body: provisional_answer
+A thin confidence bar under the text: width = confidence * 100%, label like “Confidence: 78%”.
+A row of evidence chips:
+For each evidence item, render a small pill: [tool_name] with tooltip showing the content.
+A “Crowd signal” area:
+Show small circular “avatars” for each vote (just initials from user_id or name if you want to join later with leaderboard).
+Next to each avatar: 👍 or 👎 based on vote 1/-1.
+Gray out lightly but make it feel like a comment row on social media.
+If no votes yet and status is awaiting_votes, show light text: “Waiting for peer reviewers…”.
+Stop polling once status === "completed".
+Add a tiny timestamp (“Last updated: [time]”) using local time.
+Keep this whole page visually like a Twitter/Threads single-post view: one main card, very clean, lots of whitespace.
+3) /verify – Community / Leaderboard Page
+This page focuses on the “social” aspect (very simple).
+Layout:
+Title: “Community Trust Board”
+Subtext: “These are the top reviewers helping VeriVerse stay accurate.”
+Call getLeaderboard() on mount; show:
+A simple table or list:
+Columns: Name, Expertise (you can leave it blank if backend doesn’t supply; for now just show Precision %, Attempts, Tier, Points).
+Each row:
+Name (e.g. Aarav)
+Precision: Math.round(precision * 100) with %
+Attempts
+Tier (colored small badge: Bronze, Silver, Gold, Platinum, Diamond)
+Points
+Below the leaderboard:
+Small text: “Reviewers earn points when they correctly upvote/downvote AI responses. In a full product, these points convert to rewards (goodies, coupons, perks).”
+Optional but nice: add a “Back to Ask” button linking to /ask.
+Components & File Structure
+Use a simple structure:
+src/
+  main.tsx
+  App.tsx
+  api.ts
+  routes/
+    LandingPage.tsx
+    AskPage.tsx
+    VerifyPage.tsx
+  components/
+    Layout.tsx        // shared navbar + centered layout
+    ClaimInputCard.tsx
+    ResultCard.tsx
+    LeaderboardTable.tsx
+    HowItWorks.tsx    // Ask → Verify → Trust strip
+    CounterMetric.tsx // 0 → 1,248 animation
+Layout.tsx should have a very minimal top bar:
+Left: “VeriVerse” text logo
+Right: simple nav: “Ask” (/ask), “Community” (/verify)
+HowItWorks.tsx: show the 3 steps with icons and short text.
+CounterMetric.tsx: implement the counting animation:
+On mount, use useEffect + requestAnimationFrame or setInterval to increment a local count state from 0 to 1248 over about 1–2 seconds.
+Render as large number with label “Claims Verified (demo)”.
+UX Rules
+The entire visual style should be understated:
+Plenty of whitespace, only one accent color.
+Rounded cards, subtle shadows only if needed.
+Avoid heavy gradients, neon colors, or busy backgrounds.
+All status / feedback should be clear:
+When loading: show a simple spinner or “Loading…” text inside cards.
+On error from API: show a thin red bar at top: “Backend unavailable, try again later.”
+Make sure the app can run by:
+npm install
+npm run dev
+Backend expected at http://localhost:8000 unless VITE_API_BASE is set.
+That’s it: keep it simple, social, and clean, wired directly to /prompts, /runs/{id}, and /leaderboard as described.
