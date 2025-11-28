@@ -187,6 +187,15 @@ export default function Layout({ children, error }: LayoutProps) {
                 Ask
               </Button>
             </Link>
+            <Link href="/feed">
+              <Button
+                variant={location === "/feed" ? "secondary" : "ghost"}
+                size="sm"
+                data-testid="link-feed"
+              >
+                Feed
+              </Button>
+            </Link>
             <Link href="/verify">
               <Button
                 variant={location === "/verify" ? "secondary" : "ghost"}

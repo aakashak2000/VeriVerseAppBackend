@@ -9,6 +9,7 @@ import VerifyPage from "@/pages/VerifyPage";
 import HistoryPage from "@/pages/HistoryPage";
 import RewardsPage from "@/pages/RewardsPage";
 import SignupPage from "@/pages/SignupPage";
+import FeedPage from "@/pages/FeedPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path="/" component={LandingPage} />
       <Route path="/ask" component={AskPage} />
+      <Route path="/feed" component={FeedPage} />
       <Route path="/verify" component={VerifyPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/rewards" component={RewardsPage} />
