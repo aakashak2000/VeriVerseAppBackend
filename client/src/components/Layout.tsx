@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Moon, Sun, LogIn, LogOut, User, History } from "lucide-react";
+import { Moon, Sun, LogIn, LogOut, User, History, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { getStoredUserId, clearStoredUserId } from "@/lib/api";
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -53,6 +54,21 @@ function ThemeToggle() {
 function UserMenu() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  const [localUserId, setLocalUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocalUserId(getStoredUserId());
+  }, []);
+
+  const handleSignOut = () => {
+    clearStoredUserId();
+    setLocalUserId(null);
+    if (isAuthenticated) {
+      window.location.href = "/api/logout";
+    } else {
+      setLocation("/");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -60,30 +76,37 @@ function UserMenu() {
     );
   }
 
-  if (!isAuthenticated) {
+  const hasUser = isAuthenticated || localUserId;
+
+  if (!hasUser) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => window.location.href = "/api/login"}
-        data-testid="button-login"
-      >
-        <LogIn className="h-4 w-4 mr-2" />
-        Sign In
-      </Button>
+      <Link href="/signup">
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="button-signup"
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
+          Sign Up
+        </Button>
+      </Link>
     );
   }
 
   const initials = user?.firstName && user?.lastName 
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-    : user?.email?.[0]?.toUpperCase() || "U";
+    : user?.displayName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
+
+  const displayName = user?.firstName 
+    ? `${user.firstName} ${user.lastName || ""}` 
+    : user?.displayName || user?.email || "User";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-testid="button-user-menu">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
+            <AvatarImage src={user?.profileImageUrl || undefined} alt={displayName} />
             <AvatarFallback className="bg-primary/10 text-primary">
               {initials}
             </AvatarFallback>
@@ -100,9 +123,9 @@ function UserMenu() {
           </Avatar>
           <div className="flex flex-col space-y-0.5">
             <p className="text-sm font-medium" data-testid="user-name">
-              {user?.firstName ? `${user.firstName} ${user.lastName || ""}` : user?.email}
+              {displayName}
             </p>
-            {user?.email && user?.firstName && (
+            {user?.email && (
               <p className="text-xs text-muted-foreground">{user.email}</p>
             )}
           </div>
@@ -110,7 +133,7 @@ function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setLocation("/history")} data-testid="menu-history">
           <History className="mr-2 h-4 w-4" />
-          <span>My Claims</span>
+          <span>My History</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setLocation("/rewards")} data-testid="menu-rewards">
           <User className="mr-2 h-4 w-4" />
@@ -118,7 +141,7 @@ function UserMenu() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
-          onClick={() => window.location.href = "/api/logout"}
+          onClick={handleSignOut}
           data-testid="button-logout"
         >
           <LogOut className="mr-2 h-4 w-4" />

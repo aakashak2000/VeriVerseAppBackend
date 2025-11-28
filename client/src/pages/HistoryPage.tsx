@@ -1,16 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
-import type { Claim } from "@shared/schema";
-import { ArrowLeft, Clock, CheckCircle, Loader2, AlertCircle, Users } from "lucide-react";
+import { getStoredUserId, getUserHistory } from "@/lib/api";
+import type { ClaimHistoryItem } from "@shared/schema";
+import { ArrowLeft, Clock, CheckCircle, Loader2, AlertCircle, Users, ExternalLink } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
   queued: { label: "Queued", className: "bg-muted text-muted-foreground", icon: Clock },
@@ -39,50 +36,34 @@ function LoadingSkeleton() {
 }
 
 export default function HistoryPage() {
-  const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-
-  const { data: claims, isLoading, error } = useQuery<Claim[]>({
-    queryKey: ["/api/claims/history"],
-    enabled: isAuthenticated,
-    retry: false,
-  });
+  const [claims, setClaims] = useState<ClaimHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-    }
-  }, [isAuthenticated, authLoading, toast]);
+    const storedUserId = getStoredUserId();
+    setUserId(storedUserId);
+  }, []);
 
   useEffect(() => {
-    if (error && isUnauthorizedError(error as Error)) {
-      toast({
-        title: "Session Expired",
-        description: "Please sign in again.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-    }
-  }, [error, toast]);
+    const fetchHistory = async () => {
+      try {
+        if (userId) {
+          const history = await getUserHistory(userId);
+          setClaims(history);
+        } else {
+          const history = await getUserHistory("demo");
+          setClaims(history);
+        }
+      } catch (error) {
+        setClaims([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  if (authLoading) {
-    return (
-      <Layout>
-        <div className="max-w-3xl mx-auto px-4 py-8 md:py-12">
-          <LoadingSkeleton />
-        </div>
-      </Layout>
-    );
-  }
+    fetchHistory();
+  }, [userId]);
 
   return (
     <Layout>
@@ -101,15 +82,16 @@ export default function HistoryPage() {
         ) : claims && claims.length > 0 ? (
           <div className="space-y-4" data-testid="history-list">
             {claims.map((claim, index) => {
-              const status = statusConfig[claim.status || "queued"];
+              const status = statusConfig[claim.status] || statusConfig.queued;
               const StatusIcon = status.icon;
-              const confidencePercent = claim.confidence ? Math.round(claim.confidence * 100) : 0;
+              const confidencePercent = Math.round(claim.confidence * 100);
+              const formattedDate = new Date(claim.created_at).toLocaleString();
               
               return (
                 <Card key={claim.id} className="border hover-elevate" data-testid={`claim-${index}`}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between gap-4 mb-3">
-                      <p className="font-medium text-foreground line-clamp-2" data-testid={`claim-prompt-${index}`}>
+                      <p className="font-medium text-foreground line-clamp-1" data-testid={`claim-prompt-${index}`}>
                         {claim.prompt}
                       </p>
                       <Badge 
@@ -122,9 +104,9 @@ export default function HistoryPage() {
                       </Badge>
                     </div>
                     
-                    {claim.provisionalAnswer && (
+                    {claim.provisional_answer && (
                       <p className="text-sm text-muted-foreground line-clamp-2 mb-3" data-testid={`claim-answer-${index}`}>
-                        {claim.provisionalAnswer}
+                        {claim.provisional_answer}
                       </p>
                     )}
                     
@@ -135,10 +117,26 @@ export default function HistoryPage() {
                             Confidence: {confidencePercent}%
                           </span>
                         )}
+                        <span data-testid={`claim-votes-${index}`}>
+                          {claim.vote_count} vote{claim.vote_count !== 1 ? "s" : ""}
+                        </span>
                         <span data-testid={`claim-date-${index}`}>
-                          {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : ""}
+                          {formattedDate}
                         </span>
                       </div>
+                      {claim.run_id && (
+                        <Link href={`/ask?run_id=${claim.run_id}`}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-xs"
+                            data-testid={`button-view-${index}`}
+                          >
+                            View details
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -149,7 +147,7 @@ export default function HistoryPage() {
           <Card className="border" data-testid="history-empty">
             <CardContent className="p-12 text-center">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No claims yet</h3>
+              <h3 className="text-lg font-medium text-foreground mb-2">You haven't asked anything yet!</h3>
               <p className="text-muted-foreground mb-6">
                 Start verifying claims to build your history.
               </p>

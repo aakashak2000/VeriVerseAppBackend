@@ -1,0 +1,51 @@
+Extend the VeriVerse misinformation‑detection app to support user onboarding, slower AI responses, and personal history.
+Stack: React + Vite + Tailwind on the frontend, FastAPI + MongoDB on the backend.
+Use the existing Mumbai_Hacks repo as a starting point.
+1. Add user onboarding
+Create a new route/page /signup with a form asking for: name, email (optional), location, and one or more expertise tags (e.g., “technology,” “aviation,” etc.).
+On submission, call POST /users on the FastAPI backend with the form data; the backend returns a user_id.
+Store the user_id in localStorage and redirect the user to /ask.
+If user_id is already saved, skip signup automatically.
+Form validation: require name; everything else optional.
+UI: simple card with a title (“Create your VeriVerse profile”) and a blue “Get Started” button.
+2. Adjust the Ask/Analyze page (/ask)
+At the top, check if user_id exists; if not, redirect to /signup.
+Keep the claim input and Run Verification button.
+When the claim is submitted, call POST /prompts exactly as the existing implementation.
+Immediately show a card with status “Queued…” and a spinner.
+Poll GET /runs/{run_id} every 3 seconds until status becomes in_progress, awaiting_votes, or completed.
+Once provisional_answer appears, display it along with the confidence bar and evidence chips as currently done.
+When votes arrive, display each vote with:
+name (reviewer name)
+location
+expertise tags
+vote (👍 / 👎)
+rationale as a small tooltip or subtext
+A note like “matched on same domain and location” if applicable.
+If no AI or votes are back yet, show a placeholder message (“Awaiting agentic AI & community votes…”).
+3. Add a user history page (/history)
+New route/page.
+On mount, call GET /users/{user_id}/history to fetch previous claims.
+Render a list with each item showing:
+Claim text (truncate to one line with ellipsis)
+Date/time (use new Date(created_at).toLocaleString())
+Final verdict (truth status & confidence)
+Vote count
+A “View details” link/button that navigates to /ask?run_id=... and reuses the existing result card.
+If there are no previous entries, show a friendly message (“You haven’t asked anything yet!”).
+4. Update leaderboard (/verify)
+Ensure each row shows the user’s name, precision %, attempts, points, and tier badge.
+Add a short explanation under the table about how precision & points are calculated (e.g., “Precision reflects correct votes; points = precision × min(attempts, 5). High scores unlock perks like coupons or goodies.”).
+5. Backend changes (FastAPI)
+In api_gateway, add:
+POST /users: accepts { "name": str, "email": Optional[str], "location": Optional[str], "expertise": List[str] } and returns { "user_id": str }. If the user exists, update their info; else create and initialize expertise_vector, precision = 0, attempts = 0, points = 0.
+GET /users/{user_id}/history: returns a list of the user’s past prompts and results, including run_id, claim text, provisional answer, final verdict, number of votes, and timestamp.
+Extend the run state record to store and return full voter details (name, location, expertise, rationale) in the votes[] field so the frontend can show them.
+In the consensus/voting worker, when a vote is marked correct, append the claim embedding (dummy for now) to the user’s expertise_vector and increment their correct count. Recompute precision = correct / attempts and update points = precision * min(attempts, 5).
+You can seed a few dummy users with known locations and expertise to make the demo lively; assign them high precision so they appear in the leaderboard.
+6. Styling & user experience
+Keep the colour palette minimal: soft whites/gray for backgrounds, dark navy for text, and a single accent blue (#2563EB). Avoid gradients.
+Use Tailwind’s card components with rounded corners for forms and results.
+Provide a consistent top navigation bar on all pages: “VeriVerse” on the left and links to “Ask,” “Community,” and “My History” on the right. If no user_id, show “Sign Up” instead of “My History.”
+Make sure all routes are client‑side (React Router) and the pages are responsive.
+Keep the logic in src/api.ts but add createUser, getUserHistory, and update the existing functions accordingly.

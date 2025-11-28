@@ -1,6 +1,30 @@
-import type { RunState, Leaderboard, PromptResponse } from "@shared/schema";
+import type { RunState, Leaderboard, PromptResponse, SignupUser, User, ClaimHistoryItem } from "@shared/schema";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
+
+// Demo history data
+const DEMO_HISTORY: ClaimHistoryItem[] = [
+  {
+    id: "demo_1",
+    run_id: "demo_run_1",
+    prompt: "Scientists discover water has memory and can store information",
+    status: "completed",
+    provisional_answer: "This claim is partially accurate. While water molecules can form temporary structures, there is no scientific evidence that water can 'store information' in a meaningful way.",
+    confidence: 0.72,
+    vote_count: 4,
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    id: "demo_2",
+    run_id: "demo_run_2",
+    prompt: "New study shows 5G towers cause health problems",
+    status: "completed",
+    provisional_answer: "This claim is false. Multiple peer-reviewed studies have found no evidence linking 5G technology to health problems.",
+    confidence: 0.89,
+    vote_count: 6,
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+  },
+];
 
 const DEMO_LEADERBOARD: Leaderboard = {
   entries: [
@@ -128,4 +152,122 @@ export async function getLeaderboard(): Promise<Leaderboard> {
 
 export function isDemoMode(): boolean {
   return true;
+}
+
+// User ID storage functions
+const USER_ID_KEY = "veriverse_user_id";
+
+export function getStoredUserId(): string | null {
+  return localStorage.getItem(USER_ID_KEY);
+}
+
+export function setStoredUserId(userId: string): void {
+  localStorage.setItem(USER_ID_KEY, userId);
+}
+
+export function clearStoredUserId(): void {
+  localStorage.removeItem(USER_ID_KEY);
+}
+
+// Create user (signup)
+export async function createUser(data: SignupUser): Promise<{ user_id: string } & User> {
+  try {
+    const response = await fetch(`${API_BASE}/api/users`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to create user");
+    }
+
+    const result = await response.json();
+    setStoredUserId(result.user_id);
+    return result;
+  } catch (error) {
+    // Demo mode fallback
+    const demoUserId = `demo_user_${Date.now()}`;
+    setStoredUserId(demoUserId);
+    return {
+      user_id: demoUserId,
+      id: demoUserId,
+      email: data.email || null,
+      firstName: null,
+      lastName: null,
+      displayName: data.displayName,
+      location: data.location || null,
+      expertiseTags: data.expertiseTags || [],
+      profileImageUrl: null,
+      points: 0,
+      precision: 0,
+      attempts: 0,
+      tier: "Bronze",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
+}
+
+// Get user by ID
+export async function getUser(userId: string): Promise<User | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/users/${userId}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error("Failed to fetch user");
+    }
+
+    return response.json();
+  } catch (error) {
+    // Demo mode fallback
+    if (userId.startsWith("demo_user_")) {
+      return {
+        id: userId,
+        email: null,
+        firstName: null,
+        lastName: null,
+        displayName: "Demo User",
+        location: null,
+        expertiseTags: [],
+        profileImageUrl: null,
+        points: 0,
+        precision: 0,
+        attempts: 0,
+        tier: "Bronze",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }
+    return null;
+  }
+}
+
+// Get user history
+export async function getUserHistory(userId: string): Promise<ClaimHistoryItem[]> {
+  if (userId === "demo" || userId.startsWith("demo_user_")) {
+    return DEMO_HISTORY;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE}/api/users/${userId}/history`);
+
+    if (!response.ok) {
+      return DEMO_HISTORY;
+    }
+
+    const data = await response.json();
+    if (!data || data.length === 0) {
+      return DEMO_HISTORY;
+    }
+    return data;
+  } catch (error) {
+    return DEMO_HISTORY;
+  }
 }

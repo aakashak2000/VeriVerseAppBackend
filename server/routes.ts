@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { signupUserSchema, type ClaimHistoryItem, type Vote } from "@shared/schema";
 
 const FASTAPI_BASE = process.env.FASTAPI_BASE || "http://localhost:8000";
 
@@ -118,6 +119,66 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error proxying to /leaderboard:", error);
       res.status(503).json({ error: "Backend unavailable" });
+    }
+  });
+
+  // Create or update user (custom signup)
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      const parsed = signupUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const user = await storage.createUserFromSignup(parsed.data);
+      res.json({ user_id: user.id, ...user });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+
+  // Get user by ID
+  app.get("/api/users/:userId", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  // Get user history
+  app.get("/api/users/:userId/history", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const claims = await storage.getUserClaims(userId);
+      
+      const history: ClaimHistoryItem[] = claims.map(claim => ({
+        id: claim.id,
+        run_id: claim.runId,
+        prompt: claim.prompt,
+        status: claim.status || "queued",
+        provisional_answer: claim.provisionalAnswer,
+        confidence: claim.confidence || 0,
+        vote_count: (claim.votes as Vote[] || []).length,
+        created_at: claim.createdAt?.toISOString() || new Date().toISOString(),
+      }));
+      
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching user history:", error);
+      res.status(500).json({ error: "Failed to fetch history" });
     }
   });
 

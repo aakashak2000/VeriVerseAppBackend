@@ -14,12 +14,15 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table - required for Replit Auth
+// User storage table - supports both Replit Auth and custom onboarding
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  displayName: varchar("display_name"),
+  location: varchar("location"),
+  expertiseTags: text("expertise_tags").array(),
   profileImageUrl: varchar("profile_image_url"),
   points: integer("points").default(0),
   precision: real("precision").default(0),
@@ -50,6 +53,21 @@ export const insertUserSchema = createInsertSchema(users).pick({
   lastName: true,
   profileImageUrl: true,
 });
+
+// Schema for custom signup form
+export const signupUserSchema = createInsertSchema(users).pick({
+  displayName: true,
+  email: true,
+  location: true,
+  expertiseTags: true,
+}).extend({
+  displayName: z.string().min(1, "Name is required"),
+  email: z.string().email().optional().or(z.literal("")),
+  location: z.string().optional(),
+  expertiseTags: z.array(z.string()).default([]),
+});
+
+export type SignupUser = z.infer<typeof signupUserSchema>;
 
 export const insertClaimSchema = createInsertSchema(claims).pick({
   userId: true,
@@ -112,6 +130,18 @@ export type Leaderboard = { entries: LeaderboardEntry[] };
 export type PromptResponse = {
   run_id: string;
   status: string;
+};
+
+// User history response type
+export type ClaimHistoryItem = {
+  id: string;
+  run_id: string | null;
+  prompt: string;
+  status: string;
+  provisional_answer: string | null;
+  confidence: number;
+  vote_count: number;
+  created_at: string;
 };
 
 // Rewards types

@@ -8,6 +8,7 @@ import AskPage from "@/pages/AskPage";
 import VerifyPage from "@/pages/VerifyPage";
 import HistoryPage from "@/pages/HistoryPage";
 import RewardsPage from "@/pages/RewardsPage";
+import SignupPage from "@/pages/SignupPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/verify" component={VerifyPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/rewards" component={RewardsPage} />
+      <Route path="/signup" component={SignupPage} />
       <Route component={NotFound} />
     </Switch>
   );

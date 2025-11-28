@@ -1,10 +1,12 @@
-import { users, claims, type User, type UpsertUser, type Claim, type InsertClaim } from "@shared/schema";
+import { users, claims, type User, type UpsertUser, type Claim, type InsertClaim, type SignupUser } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  createUserFromSignup(data: SignupUser): Promise<User>;
   createClaim(claim: InsertClaim): Promise<Claim>;
   getClaim(id: string): Promise<Claim | undefined>;
   getClaimByRunId(runId: string): Promise<Claim | undefined>;
@@ -15,6 +17,44 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUserFromSignup(data: SignupUser): Promise<User> {
+    const existingUser = data.email ? await this.getUserByEmail(data.email) : undefined;
+    
+    if (existingUser) {
+      const [updated] = await db
+        .update(users)
+        .set({
+          displayName: data.displayName,
+          location: data.location,
+          expertiseTags: data.expertiseTags,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, existingUser.id))
+        .returning();
+      return updated;
+    }
+
+    const [user] = await db
+      .insert(users)
+      .values({
+        displayName: data.displayName,
+        email: data.email || null,
+        location: data.location,
+        expertiseTags: data.expertiseTags,
+        points: 0,
+        precision: 0,
+        attempts: 0,
+        tier: "Bronze",
+      })
+      .returning();
     return user;
   }
 

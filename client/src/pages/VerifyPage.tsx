@@ -42,6 +42,16 @@ export default function VerifyPage() {
 
         <LeaderboardTable entries={entries} isLoading={isLoading} />
 
+        <div className="mt-8 bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground" data-testid="leaderboard-explanation">
+          <h3 className="font-medium text-foreground mb-2">How scoring works</h3>
+          <ul className="space-y-1.5">
+            <li><strong>Precision</strong> reflects the percentage of correct votes out of your total attempts.</li>
+            <li><strong>Points</strong> = Precision × min(Attempts, 5). This rewards both accuracy and participation.</li>
+            <li><strong>Tier badges</strong> are earned as you accumulate points: Bronze → Silver → Gold → Platinum → Diamond.</li>
+            <li>High scores unlock perks like coupons, goodies, and special recognition!</li>
+          </ul>
+        </div>
+
         <div className="mt-8 flex justify-center">
           <Link href="/ask">
             <Button variant="outline" data-testid="button-back-to-ask">

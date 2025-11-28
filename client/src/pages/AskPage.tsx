@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearch } from "wouter";
 import Layout from "@/components/Layout";
 import ClaimInputCard from "@/components/ClaimInputCard";
 import ResultCard from "@/components/ResultCard";
@@ -9,6 +10,7 @@ import { Loader2, Wifi, WifiOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function AskPage() {
+  const searchString = useSearch();
   const [runId, setRunId] = useState<string | null>(null);
   const [runState, setRunState] = useState<RunState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,6 +113,17 @@ export default function AskPage() {
     
     setIsSubmitting(false);
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const urlRunId = params.get("run_id");
+    if (urlRunId) {
+      setRunId(urlRunId);
+      const isDemoRun = urlRunId.startsWith("demo_run_");
+      setIsDemo(isDemoRun);
+      pollRunStatus(urlRunId, isDemoRun);
+    }
+  }, [searchString, pollRunStatus]);
 
   return (
     <Layout error={isDemo ? "Backend unavailable, running in demo mode" : null}>
