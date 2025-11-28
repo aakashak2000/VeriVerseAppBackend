@@ -10,6 +10,10 @@
 - **Background**: #F8FAFC (very light gray/blue)
 - **Text**: #0F172A (near-black)
 - **Accent**: #2563EB (soft blue) - buttons, highlights, status indicators only
+- **Semantic Colors** (allowed for specific contexts):
+  - **Success/Verified**: Green variants (green-50 through green-700) for credibility scores and verified content
+  - **Warning**: Amber variants for awaiting/pending states
+  - **Error**: Red variants for failed verifications or negative indicators
 - **No gradients, no loud colors** - maintain productivity app feel
 
 ### Typography
@@ -68,13 +72,22 @@
   - awaiting_votes → amber
   - completed → green
 - **Main Body**: provisional_answer text, generous line-height
-- **Confidence Bar**: Thin horizontal bar, width = confidence × 100%, labeled "Confidence: XX%"
-- **Evidence Chips**: Small pills showing [tool_name], arranged in row, tooltips on hover
-- **Crowd Signal Area**: 
-  - Circular avatar-style elements (initials from user_id)
-  - 👍/👎 indicators next to avatars
-  - Light gray styling, social media comment-row feel
-  - If no votes: "Waiting for peer reviewers..." in light text
+- **Credibility Score Section** (green accent for verified content):
+  - Large percentage display with checkmark icon
+  - "Credibility Score" label beneath
+  - Verification badge: "Highly Verified" (>=80%), "Partially Verified" (60-79%), "Needs Review" (<60%)
+  - Light green background (#f0fdf4 / green-50) to indicate trustworthiness
+- **Evidence Chips**: Small pills showing [tool_name], arranged in row, click to view details in modal
+- **Expert Votes Section**: 
+  - Header: "Expert Votes (X total)" with match criteria summary
+  - Individual expert cards showing:
+    - Avatar with initials from name
+    - Full name (e.g., "Dr. Sarah Chen")
+    - Domain and location (e.g., "ML Engineering • San Francisco")
+    - Verified professional badge if applicable
+    - Thumbs up/down icon with tooltip showing rationale and match reasons
+  - Match reasons: domain_expert, location_match, verified_professional, high_reputation, topic_specialist
+  - If no votes: "Waiting for expert reviewers..." in light text
 - **Timestamp**: "Last updated: [time]" in small, muted text
 
 **Whitespace**: Generous padding between sections, clean separation
