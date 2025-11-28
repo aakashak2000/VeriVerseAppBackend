@@ -19,10 +19,12 @@ Preferred communication style: Simple, everyday language.
 - Text: #0F172A (near-black)
 - Accent: #2563EB (soft blue)
 
-**Routing**: Client-side routing implemented with Wouter library. Three main routes:
+**Routing**: Client-side routing implemented with Wouter library. Main routes:
 - `/` - Landing page with hero section and product overview
-- `/ask` - Interactive claim verification interface
-- `/verify` - Community leaderboard and trust board
+- `/signup` - User onboarding with profile creation (name, location, expertise tags)
+- `/ask` - Interactive claim verification interface (accessible without signup)
+- `/history` - User's past claims with demo fallback for new users
+- `/verify` - Community leaderboard and trust board with scoring explanation
 
 **State Management**: React Query (@tanstack/react-query) for server state management with configured defaults for refetching behavior and stale time.
 
@@ -39,10 +41,15 @@ Preferred communication style: Simple, everyday language.
 
 **Proxy Pattern**: The Express backend acts as a proxy to a separate FastAPI service (configurable via `FASTAPI_BASE` environment variable, defaults to `http://localhost:8000`). All `/api/*` routes are forwarded to the FastAPI backend.
 
-**API Endpoints** (proxied):
+**API Endpoints** (proxied to FastAPI):
 - `POST /api/prompts` - Submit new claims for verification
 - `GET /api/runs/:runId` - Poll verification status and results
 - `GET /api/leaderboard` - Retrieve community trust rankings
+
+**Direct Express Endpoints**:
+- `POST /api/users` - Create new user profile during signup
+- `GET /api/users/:id` - Get user profile by ID
+- `GET /api/users/:id/history` - Get user's claim history
 
 **Fallback/Demo Mode**: The frontend API client (`client/src/lib/api.ts`) includes built-in demo data that activates when the FastAPI backend is unavailable, ensuring the application remains functional for demonstration purposes.
 
@@ -59,9 +66,15 @@ Preferred communication style: Simple, everyday language.
 **Database ORM**: Drizzle ORM configured for PostgreSQL (via `@neondatabase/serverless` driver).
 
 **Schema** (defined in `shared/schema.ts`):
-- `users` table with id, username, and password fields
-- TypeScript types for Vote, Evidence, RunState, LeaderboardEntry, and Leaderboard
+- `users` table with extended profile fields: id, email, displayName, location, expertiseTags, profileImageUrl, points, precision, attempts, tier
+- TypeScript types for Vote, Evidence, RunState, LeaderboardEntry, Leaderboard, SignupUser, and ClaimHistoryItem
 - Zod schemas for validation using `drizzle-zod`
+
+**User Authentication**:
+- Simple localStorage-based user identification for onboarding flow
+- User ID stored in localStorage after signup (key: `veriverse_user_id`)
+- Layout checks both Replit auth and localStorage for user status
+- Demo fallbacks when user has no history or backend is unavailable
 
 **Storage Abstraction**: `IStorage` interface in `server/storage.ts` with in-memory implementation (`MemStorage`) for development. This abstraction allows swapping to database-backed storage without changing business logic.
 
