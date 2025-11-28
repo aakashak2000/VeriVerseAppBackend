@@ -2,7 +2,8 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { signupUserSchema, type ClaimHistoryItem, type Vote } from "@shared/schema";
+import { signupUserSchema, insertCommunityNoteSchema, type ClaimHistoryItem, type Vote, type CreateClaimRequest, type AddNoteRequest } from "@shared/schema";
+import { z } from "zod";
 
 const FASTAPI_BASE = process.env.FASTAPI_BASE || "http://localhost:8000";
 
@@ -179,6 +180,147 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching user history:", error);
       res.status(500).json({ error: "Failed to fetch history" });
+    }
+  });
+
+  // ========== COMMUNITY FEED ROUTES ==========
+
+  // Get all claims for the feed
+  app.get("/api/claims", async (req: Request, res: Response) => {
+    try {
+      const sort = (req.query.sort as string) === "latest" ? "latest" : "relevant";
+      const userId = req.query.userId as string | undefined;
+      
+      const claims = await storage.getAllClaims(sort, userId);
+      res.json(claims);
+    } catch (error) {
+      console.error("Error fetching claims:", error);
+      res.status(500).json({ error: "Failed to fetch claims" });
+    }
+  });
+
+  // Create a new claim for the feed
+  app.post("/api/claims", async (req: Request, res: Response) => {
+    try {
+      const createClaimSchema = z.object({
+        user_id: z.string().min(1),
+        text: z.string().min(1),
+        topics: z.array(z.string()).optional().default([]),
+        location: z.string().optional(),
+      });
+
+      const parsed = createClaimSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const { user_id, text, topics, location } = parsed.data;
+
+      const claim = await storage.createClaim({
+        userId: user_id,
+        prompt: text,
+        topics: topics,
+        location: location || null,
+      });
+
+      res.json({ claim_id: claim.id });
+    } catch (error) {
+      console.error("Error creating claim:", error);
+      res.status(500).json({ error: "Failed to create claim" });
+    }
+  });
+
+  // Add a community note to a claim
+  app.post("/api/claims/:claimId/notes", async (req: Request, res: Response) => {
+    try {
+      const { claimId } = req.params;
+      
+      const addNoteSchema = z.object({
+        user_id: z.string().min(1),
+        note: z.string().min(1).max(500),
+      });
+
+      const parsed = addNoteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const { user_id, note } = parsed.data;
+
+      const claim = await storage.getClaim(claimId);
+      if (!claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      const communityNote = await storage.addCommunityNote({
+        claimId,
+        userId: user_id,
+        note,
+      });
+
+      res.json({ note_id: communityNote.id });
+    } catch (error) {
+      console.error("Error adding community note:", error);
+      res.status(500).json({ error: "Failed to add note" });
+    }
+  });
+
+  // Get a single claim with full details
+  app.get("/api/claims/:claimId", async (req: Request, res: Response) => {
+    try {
+      const { claimId } = req.params;
+      const claim = await storage.getClaim(claimId);
+      
+      if (!claim) {
+        return res.status(404).json({ error: "Claim not found" });
+      }
+
+      const author = claim.userId ? await storage.getUser(claim.userId) : null;
+      const notes = await storage.getClaimNotes(claimId);
+
+      res.json({
+        id: claim.id,
+        text: claim.prompt,
+        topics: claim.topics || [],
+        location: claim.location,
+        created_at: claim.createdAt?.toISOString(),
+        run_id: claim.runId,
+        status: claim.status,
+        author: {
+          id: author?.id || "unknown",
+          name: author?.displayName || "Anonymous",
+          location: author?.location,
+          expertise: author?.expertiseTags || [],
+          profile_image_url: author?.profileImageUrl,
+        },
+        ai_summary: claim.aiSummary,
+        provisional_answer: claim.provisionalAnswer,
+        confidence: claim.confidence,
+        credibility_score: claim.credibilityScore,
+        relevancy_score: claim.relevancyScore,
+        votes: claim.votes || [],
+        community_notes: notes,
+      });
+    } catch (error) {
+      console.error("Error fetching claim:", error);
+      res.status(500).json({ error: "Failed to fetch claim" });
+    }
+  });
+
+  // Seed demo data on startup
+  app.post("/api/seed", async (req: Request, res: Response) => {
+    try {
+      await storage.seedDemoData();
+      res.json({ success: true, message: "Demo data seeded" });
+    } catch (error) {
+      console.error("Error seeding demo data:", error);
+      res.status(500).json({ error: "Failed to seed demo data" });
     }
   });
 
