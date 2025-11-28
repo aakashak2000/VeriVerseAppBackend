@@ -724,3 +724,63 @@ export async function seedDemoData(): Promise<void> {
     console.log("Using demo mode");
   }
 }
+
+// Get a single claim with full details
+export async function getClaim(claimId: string): Promise<FeedClaim | null> {
+  try {
+    const response = await fetch(`${API_BASE}/api/claims/${claimId}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error("Failed to fetch claim");
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching claim:", error);
+    return null;
+  }
+}
+
+// Submit a vote on a claim
+export interface VoteResponse {
+  success: boolean;
+  claim_id: string;
+  confidence?: number;
+  status?: string;
+  error?: string;
+}
+
+export async function submitVote(
+  claimId: string,
+  userId: string,
+  vote: 1 | -1,
+  rationale: string
+): Promise<VoteResponse> {
+  try {
+    const response = await fetch(`${API_BASE}/api/claims/${claimId}/vote`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        vote,
+        rationale,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      return { success: false, claim_id: claimId, error: data.error || "Failed to submit vote" };
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error submitting vote:", error);
+    return { success: false, claim_id: claimId, error: "Failed to submit vote" };
+  }
+}
