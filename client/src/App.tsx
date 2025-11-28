@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import LandingPage from "@/pages/LandingPage";
 import AskPage from "@/pages/AskPage";
 import VerifyPage from "@/pages/VerifyPage";
+import HistoryPage from "@/pages/HistoryPage";
+import RewardsPage from "@/pages/RewardsPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -14,6 +16,8 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/ask" component={AskPage} />
       <Route path="/verify" component={VerifyPage} />
+      <Route path="/history" component={HistoryPage} />
+      <Route path="/rewards" component={RewardsPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,22 +1,70 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, text, timestamp, varchar, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table - required for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table - required for Replit Auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  points: integer("points").default(0),
+  precision: real("precision").default(0),
+  attempts: integer("attempts").default(0),
+  tier: varchar("tier").default("Bronze"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Claims table - stores user verification history
+export const claims = pgTable("claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  prompt: text("prompt").notNull(),
+  runId: varchar("run_id"),
+  status: varchar("status").default("queued"),
+  provisionalAnswer: text("provisional_answer"),
+  confidence: real("confidence").default(0),
+  evidence: jsonb("evidence").default([]),
+  votes: jsonb("votes").default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  profileImageUrl: true,
+});
+
+export const insertClaimSchema = createInsertSchema(claims).pick({
+  userId: true,
+  prompt: true,
+  runId: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UpsertUser = typeof users.$inferInsert;
 
+export type Claim = typeof claims.$inferSelect;
+export type InsertClaim = typeof claims.$inferInsert;
+
+// API types for FastAPI integration
 export type Vote = {
   user_id: string;
   vote: 1 | -1;
@@ -52,4 +100,21 @@ export type Leaderboard = { entries: LeaderboardEntry[] };
 export type PromptResponse = {
   run_id: string;
   status: string;
+};
+
+// Rewards types
+export type Perk = {
+  id: string;
+  name: string;
+  description: string;
+  pointsCost: number;
+  category: string;
+  available: boolean;
+};
+
+export type Reward = {
+  id: string;
+  userId: string;
+  perkId: string;
+  redeemedAt: Date;
 };

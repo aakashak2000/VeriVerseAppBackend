@@ -3,15 +3,36 @@ import Layout from "@/components/Layout";
 import ClaimInputCard from "@/components/ClaimInputCard";
 import ResultCard from "@/components/ResultCard";
 import { createPrompt, getRun } from "@/lib/api";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import type { RunState } from "@shared/schema";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wifi, WifiOff } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function AskPage() {
+  const [runId, setRunId] = useState<string | null>(null);
   const [runState, setRunState] = useState<RunState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const isCompleted = runState?.status === "completed";
+
+  const handleWebSocketUpdate = useCallback((data: RunState) => {
+    setRunState(data);
+    setLastUpdated(new Date());
+    
+    // Clear polling when we get a WebSocket update
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const { isConnected } = useWebSocket({
+    runId: isDemo ? null : runId,
+    onUpdate: handleWebSocketUpdate,
+    enabled: !isDemo && !isCompleted,
+  });
 
   const pollRunStatus = useCallback(async (id: string, isDemoRun: boolean) => {
     const state = await getRun(id);
@@ -26,17 +47,43 @@ export default function AskPage() {
     }
   }, []);
 
+  // Start/stop polling based on WebSocket connection status
   useEffect(() => {
-    return () => {
+    // Only poll if:
+    // - We have a runId
+    // - Not in demo mode
+    // - Not completed
+    // - WebSocket is NOT connected
+    const shouldPoll = runId && !isDemo && !isCompleted && !isConnected;
+    
+    if (shouldPoll) {
+      // Clear any existing polling first
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
+      
+      // Start polling as fallback
+      pollingRef.current = setInterval(() => {
+        pollRunStatus(runId, false);
+      }, 3000);
+    } else if (pollingRef.current) {
+      // Stop polling when WebSocket is connected or run is complete
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     };
-  }, []);
+  }, [runId, isDemo, isCompleted, isConnected, pollRunStatus]);
 
   const handleSubmit = async (claim: string) => {
     setIsSubmitting(true);
     setRunState(null);
+    setRunId(null);
     setIsDemo(false);
     
     if (pollingRef.current) {
@@ -47,6 +94,7 @@ export default function AskPage() {
     const response = await createPrompt(claim);
     const isDemoRun = response.run_id.startsWith("demo_run_");
     setIsDemo(isDemoRun);
+    setRunId(response.run_id);
     
     setRunState({
       run_id: response.run_id,
@@ -58,13 +106,8 @@ export default function AskPage() {
     });
     setLastUpdated(new Date());
     
+    // Fetch initial state
     await pollRunStatus(response.run_id, isDemoRun);
-    
-    if (!isDemoRun) {
-      pollingRef.current = setInterval(() => {
-        pollRunStatus(response.run_id, false);
-      }, 3000);
-    }
     
     setIsSubmitting(false);
   };
@@ -73,9 +116,30 @@ export default function AskPage() {
     <Layout error={isDemo ? "Backend unavailable, running in demo mode" : null}>
       <div className="max-w-2xl mx-auto px-4 py-8 md:py-12">
         <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2" data-testid="ask-title">
-            Verify a Claim
-          </h1>
+          <div className="flex items-center justify-between gap-4 mb-2 flex-wrap">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground" data-testid="ask-title">
+              Verify a Claim
+            </h1>
+            {runId && !isDemo && !isCompleted && (
+              <Badge 
+                variant="outline" 
+                className={isConnected ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}
+                data-testid="connection-status"
+              >
+                {isConnected ? (
+                  <>
+                    <Wifi className="h-3 w-3 mr-1" />
+                    Live
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3 mr-1" />
+                    Polling
+                  </>
+                )}
+              </Badge>
+            )}
+          </div>
           <p className="text-muted-foreground" data-testid="ask-subtitle">
             Paste any news headline or claim to check its accuracy with AI-powered analysis and community verification.
           </p>
