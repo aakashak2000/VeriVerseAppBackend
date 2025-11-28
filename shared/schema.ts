@@ -65,11 +65,23 @@ export type Claim = typeof claims.$inferSelect;
 export type InsertClaim = typeof claims.$inferInsert;
 
 // API types for FastAPI integration
+export type VoteMatchReason = 
+  | "domain_expert"
+  | "location_match"
+  | "verified_professional"
+  | "high_reputation"
+  | "topic_specialist";
+
 export type Vote = {
   user_id: string;
+  name: string;
+  domain: string;
+  location: string;
   vote: 1 | -1;
   weight: number;
   rationale: string;
+  match_reasons: VoteMatchReason[];
+  profile_image_url?: string;
 };
 
 export type Evidence = {
