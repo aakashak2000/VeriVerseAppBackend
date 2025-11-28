@@ -1,4 +1,4 @@
-import type { RunState, Leaderboard, PromptResponse, SignupUser, User, ClaimHistoryItem } from "@shared/schema";
+import type { RunState, Leaderboard, PromptResponse, SignupUser, User, ClaimHistoryItem, FeedClaim, Vote, CommunityNoteWithAuthor } from "@shared/schema";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -201,9 +201,10 @@ export async function createUser(data: SignupUser): Promise<{ user_id: string } 
       displayName: data.displayName,
       location: data.location || null,
       expertiseTags: data.expertiseTags || [],
+      topicPrecision: {},
       profileImageUrl: null,
       points: 0,
-      precision: 0,
+      precision: 0.5,
       attempts: 0,
       tier: "Bronze",
       createdAt: new Date(),
@@ -236,9 +237,10 @@ export async function getUser(userId: string): Promise<User | null> {
         displayName: "Demo User",
         location: null,
         expertiseTags: [],
+        topicPrecision: {},
         profileImageUrl: null,
         points: 0,
-        precision: 0,
+        precision: 0.5,
         attempts: 0,
         tier: "Bronze",
         createdAt: new Date(),
@@ -269,5 +271,186 @@ export async function getUserHistory(userId: string): Promise<ClaimHistoryItem[]
     return data;
   } catch (error) {
     return DEMO_HISTORY;
+  }
+}
+
+// ========== COMMUNITY FEED API ==========
+
+// Demo feed data for when backend is unavailable
+const DEMO_FEED: FeedClaim[] = [
+  {
+    id: "demo_claim_1",
+    text: "Apple is building a new AI data center in Mumbai.",
+    topics: ["Technology", "AI", "India"],
+    location: "Mumbai",
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    status: "completed",
+    author: {
+      id: "demo_aakash",
+      name: "Aakash Kumar",
+      location: "Mumbai",
+      expertise: ["Technology", "Sports"],
+    },
+    ai_summary: "Verified by tech experts. Multiple sources confirm Apple's expansion plans in India.",
+    provisional_answer: "This claim appears to be accurate. Apple has announced plans for significant infrastructure investment in India.",
+    confidence: 0.87,
+    credibility_score: 0.89,
+    relevancy_score: 0.92,
+    votes: [
+      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"] },
+      { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy", match_reasons: ["domain_expert"] },
+    ],
+    community_notes: [
+      { id: "note_1", note: "I've seen construction activity near the proposed site.", created_at: new Date(Date.now() - 1800000).toISOString(), author: { id: "demo_parth", name: "Parth Joshi", location: "Gujarat" } },
+    ],
+  },
+  {
+    id: "demo_claim_2",
+    text: "RBI is piloting an AI-based credit scoring system for rural loans.",
+    topics: ["Finance", "AI", "India"],
+    location: "India",
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+    status: "completed",
+    author: {
+      id: "demo_aneesha",
+      name: "Aneesha Manke",
+      location: "Nagpur",
+      expertise: ["Business", "Product", "AI", "Finance"],
+    },
+    ai_summary: "Finance and AI experts validate this initiative. The RBI has been exploring fintech solutions.",
+    provisional_answer: "This claim is verified. RBI has announced pilot programs for AI-based credit scoring.",
+    confidence: 0.91,
+    credibility_score: 0.93,
+    relevancy_score: 0.95,
+    votes: [
+      { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Finance", location: "Nagpur", vote: 1, weight: 0.92, rationale: "Verified through RBI publications", match_reasons: ["domain_expert", "verified_professional"] },
+      { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends", match_reasons: ["domain_expert"] },
+    ],
+    community_notes: [
+      { id: "note_2", note: "RBI has been actively publishing research on this. The pilot is already underway.", created_at: new Date(Date.now() - 3600000).toISOString(), author: { id: "demo_aneesha", name: "Aneesha Manke", location: "Nagpur" } },
+    ],
+  },
+  {
+    id: "demo_claim_3",
+    text: "BCCI is planning a new T20 league in the USA.",
+    topics: ["Sports", "Business"],
+    location: "USA",
+    created_at: new Date(Date.now() - 10800000).toISOString(),
+    status: "completed",
+    author: {
+      id: "demo_aakash",
+      name: "Aakash Kumar",
+      location: "Mumbai",
+      expertise: ["Technology", "Sports"],
+    },
+    ai_summary: "Sports industry experts confirm BCCI's expansion plans for North American cricket.",
+    provisional_answer: "This claim is likely accurate based on recent BCCI announcements.",
+    confidence: 0.82,
+    credibility_score: 0.85,
+    relevancy_score: 0.78,
+    votes: [
+      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"] },
+    ],
+    community_notes: [],
+  },
+  {
+    id: "demo_claim_4",
+    text: "Organic gardening in Brazil has increased by 40% this year.",
+    topics: ["Gardening", "Brazil", "Agriculture"],
+    location: "Brazil",
+    created_at: new Date(Date.now() - 14400000).toISOString(),
+    status: "awaiting_votes",
+    author: {
+      id: "demo_parth",
+      name: "Parth Joshi",
+      location: "Gujarat",
+      expertise: ["Technology", "Food", "India"],
+    },
+    ai_summary: "Limited expert coverage for this topic. Claim requires more verification.",
+    provisional_answer: "This claim needs more verification. Our experts have limited coverage in Brazilian agriculture.",
+    confidence: 0.45,
+    credibility_score: 0.40,
+    relevancy_score: 0.25,
+    votes: [],
+    community_notes: [],
+  },
+];
+
+// Fetch all claims for the feed
+export async function fetchClaims(params: { userId?: string; sort?: "relevant" | "latest" }): Promise<FeedClaim[]> {
+  try {
+    const queryParams = new URLSearchParams();
+    if (params.userId) queryParams.set("userId", params.userId);
+    if (params.sort) queryParams.set("sort", params.sort);
+
+    const response = await fetch(`${API_BASE}/api/claims?${queryParams.toString()}`);
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch claims");
+    }
+
+    const data = await response.json();
+    if (!data || data.length === 0) {
+      return DEMO_FEED;
+    }
+    return data;
+  } catch (error) {
+    return DEMO_FEED;
+  }
+}
+
+// Create a new claim
+export async function createClaim(userId: string, text: string, topics?: string[]): Promise<{ claim_id: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/api/claims`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        text,
+        topics: topics || [],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create claim");
+    }
+
+    return response.json();
+  } catch (error) {
+    return { claim_id: `demo_claim_${Date.now()}` };
+  }
+}
+
+// Add a community note to a claim
+export async function addCommunityNote(claimId: string, userId: string, note: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE}/api/claims/${claimId}/notes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_id: userId,
+        note,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to add note");
+    }
+  } catch (error) {
+    console.log("Note added in demo mode");
+  }
+}
+
+// Seed demo data
+export async function seedDemoData(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/seed`, { method: "POST" });
+  } catch (error) {
+    console.log("Using demo mode");
   }
 }
