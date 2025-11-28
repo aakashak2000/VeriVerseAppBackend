@@ -153,6 +153,10 @@ function UserMenu() {
           </div>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-profile">
+          <User className="mr-2 h-4 w-4" />
+          <span>My Profile</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setLocation("/history")} data-testid="menu-history">
           <History className="mr-2 h-4 w-4" />
           <span>My History</span>

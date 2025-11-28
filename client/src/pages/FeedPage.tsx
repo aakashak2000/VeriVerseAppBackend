@@ -108,9 +108,11 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="font-medium text-foreground" data-testid={`author-name-${claim.id}`}>
-                {claim.author?.name || "Anonymous"}
-              </p>
+              <Link href={claim.author?.id ? `/profile/${claim.author.id}` : "#"}>
+                <p className="font-medium text-foreground hover:text-primary cursor-pointer" data-testid={`author-name-${claim.id}`}>
+                  {claim.author?.name || "Anonymous"}
+                </p>
+              </Link>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {claim.author?.location && (
                   <span className="flex items-center gap-1" data-testid={`author-location-${claim.id}`}>
@@ -200,7 +202,9 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
                         {getInitials(vote.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium">{vote.name}</span>
+                    <Link href={`/profile/${vote.user_id}`}>
+                      <span className="text-sm font-medium hover:text-primary cursor-pointer">{vote.name}</span>
+                    </Link>
                     <Badge variant="secondary" className="text-xs">{vote.domain}</Badge>
                     {vote.location && (
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
