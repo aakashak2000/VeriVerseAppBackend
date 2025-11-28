@@ -18,6 +18,8 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  loginId: varchar("login_id").unique(),
+  passwordHash: varchar("password_hash"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   displayName: varchar("display_name"),
@@ -117,6 +119,7 @@ export type VoteMatchReason =
   | "topic_specialist";
 
 export type Vote = {
+  id?: string;
   user_id: string;
   name: string;
   domain: string;
@@ -126,6 +129,33 @@ export type Vote = {
   rationale: string;
   match_reasons: VoteMatchReason[];
   profile_image_url?: string;
+  note?: string;
+};
+
+// Authentication types
+export type LoginRequest = {
+  login_id: string;
+  password: string;
+};
+
+export type LoginResponse = {
+  user_id: string;
+  display_name: string;
+  location: string;
+  expertise: string[];
+};
+
+export type AuthUser = {
+  id: string;
+  displayName: string;
+  email: string | null;
+  location: string | null;
+  expertiseTags: string[];
+  profileImageUrl: string | null;
+  precision: number;
+  points: number;
+  tier: string;
+  topicPrecision: Record<string, number>;
 };
 
 export type Evidence = {

@@ -1,10 +1,13 @@
-import { users, claims, communityNotes, type User, type UpsertUser, type Claim, type InsertClaim, type SignupUser, type CommunityNote, type InsertCommunityNote, type FeedClaim, type Vote, type CommunityNoteWithAuthor } from "@shared/schema";
+import { users, claims, communityNotes, type User, type UpsertUser, type Claim, type InsertClaim, type SignupUser, type CommunityNote, type InsertCommunityNote, type FeedClaim, type Vote, type CommunityNoteWithAuthor, type AuthUser } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByLoginId(loginId: string): Promise<User | undefined>;
+  validateLogin(loginId: string, password: string): Promise<AuthUser | null>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUserFromSignup(data: SignupUser): Promise<User>;
   createClaim(claim: InsertClaim): Promise<Claim>;
@@ -15,6 +18,7 @@ export interface IStorage {
   getAllClaims(sort: "relevant" | "latest", viewerId?: string): Promise<FeedClaim[]>;
   addCommunityNote(data: InsertCommunityNote): Promise<CommunityNote>;
   getClaimNotes(claimId: string): Promise<CommunityNoteWithAuthor[]>;
+  addVoteNote(claimId: string, voteUserId: string, note: string): Promise<boolean>;
   seedDemoData(): Promise<void>;
 }
 
@@ -27,6 +31,36 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
+  }
+
+  async getUserByLoginId(loginId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.loginId, loginId));
+    return user;
+  }
+
+  async validateLogin(loginId: string, password: string): Promise<AuthUser | null> {
+    const user = await this.getUserByLoginId(loginId);
+    if (!user || !user.passwordHash) {
+      return null;
+    }
+    
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      return null;
+    }
+    
+    return {
+      id: user.id,
+      displayName: user.displayName || "",
+      email: user.email,
+      location: user.location,
+      expertiseTags: (user.expertiseTags as string[]) || [],
+      profileImageUrl: user.profileImageUrl,
+      precision: user.precision || 0,
+      points: user.points || 0,
+      tier: user.tier || "Bronze",
+      topicPrecision: (user.topicPrecision as Record<string, number>) || {},
+    };
   }
 
   async createUserFromSignup(data: SignupUser): Promise<User> {
@@ -186,19 +220,33 @@ export class DatabaseStorage implements IStorage {
     return notesWithAuthors;
   }
 
-  async seedDemoData(): Promise<void> {
-    const existingClaims = await db.select().from(claims).limit(1);
-    if (existingClaims.length > 0) {
-      console.log("Demo data already seeded, skipping...");
-      return;
-    }
+  async addVoteNote(claimId: string, voteUserId: string, note: string): Promise<boolean> {
+    const claim = await this.getClaim(claimId);
+    if (!claim) return false;
+    
+    const votes = (claim.votes as Vote[]) || [];
+    const voteIndex = votes.findIndex(v => v.user_id === voteUserId);
+    
+    if (voteIndex === -1) return false;
+    
+    votes[voteIndex].note = note;
+    
+    await db.update(claims)
+      .set({ votes: votes, updatedAt: new Date() })
+      .where(eq(claims.id, claimId));
+    
+    return true;
+  }
 
-    console.log("Seeding demo data...");
+  async seedDemoData(): Promise<void> {
+    console.log("Seeding demo data with authentication...");
 
     const demoUsers = [
       {
         id: "demo_aakash",
         email: "aakashak2000@gmail.com",
+        loginId: "aakash",
+        password: "aakash123",
         displayName: "Aakash Kumar",
         location: "Mumbai",
         expertiseTags: ["Technology", "Sports"],
@@ -211,6 +259,8 @@ export class DatabaseStorage implements IStorage {
       {
         id: "demo_aneesha",
         email: "aneeshamanke@gmail.com",
+        loginId: "aneesha",
+        password: "aneesha123",
         displayName: "Aneesha Manke",
         location: "Nagpur",
         expertiseTags: ["Business", "Product", "AI", "Finance"],
@@ -223,6 +273,8 @@ export class DatabaseStorage implements IStorage {
       {
         id: "demo_shaurya",
         email: "shauryanegi17@gmail.com",
+        loginId: "shaurya",
+        password: "shaurya123",
         displayName: "Shaurya Negi",
         location: "Dehradun",
         expertiseTags: ["Finance", "Geography", "Tech"],
@@ -235,6 +287,8 @@ export class DatabaseStorage implements IStorage {
       {
         id: "demo_parth",
         email: "parth010872@gmail.com",
+        loginId: "parth",
+        password: "parth123",
         displayName: "Parth Joshi",
         location: "Gujarat",
         expertiseTags: ["Technology", "Food", "India"],
@@ -248,13 +302,52 @@ export class DatabaseStorage implements IStorage {
 
     for (const user of demoUsers) {
       try {
+        const passwordHash = await bcrypt.hash(user.password, 10);
         const existingByEmail = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
-        if (existingByEmail.length === 0) {
-          await db.insert(users).values(user).onConflictDoNothing();
+        
+        if (existingByEmail.length > 0) {
+          await db.update(users)
+            .set({ 
+              loginId: user.loginId, 
+              passwordHash: passwordHash,
+              displayName: user.displayName,
+              location: user.location,
+              expertiseTags: user.expertiseTags,
+              topicPrecision: user.topicPrecision,
+              precision: user.precision,
+              attempts: user.attempts,
+              points: user.points,
+              tier: user.tier,
+              updatedAt: new Date()
+            })
+            .where(eq(users.email, user.email));
+          console.log(`Updated user ${user.loginId} with login credentials`);
+        } else {
+          await db.insert(users).values({
+            id: user.id,
+            email: user.email,
+            loginId: user.loginId,
+            passwordHash: passwordHash,
+            displayName: user.displayName,
+            location: user.location,
+            expertiseTags: user.expertiseTags,
+            topicPrecision: user.topicPrecision,
+            precision: user.precision,
+            attempts: user.attempts,
+            points: user.points,
+            tier: user.tier,
+          }).onConflictDoNothing();
+          console.log(`Created user ${user.loginId}`);
         }
       } catch (e) {
-        console.log(`User ${user.id} already exists or has conflict`);
+        console.log(`User ${user.id} error:`, e);
       }
+    }
+
+    const existingClaims = await db.select().from(claims).limit(1);
+    if (existingClaims.length > 0) {
+      console.log("Claims already seeded, skipping claims...");
+      return;
     }
 
     const existingUserByEmail = await db.select().from(users).where(eq(users.email, "aakashak2000@gmail.com")).limit(1);

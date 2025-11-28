@@ -2,10 +2,15 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { signupUserSchema, insertCommunityNoteSchema, type ClaimHistoryItem, type Vote, type CreateClaimRequest, type AddNoteRequest } from "@shared/schema";
+import { signupUserSchema, insertCommunityNoteSchema, type ClaimHistoryItem, type Vote, type CreateClaimRequest, type AddNoteRequest, type LoginRequest } from "@shared/schema";
 import { z } from "zod";
 
 const FASTAPI_BASE = process.env.FASTAPI_BASE || "http://localhost:8000";
+
+const loginSchema = z.object({
+  login_id: z.string().min(1),
+  password: z.string().min(1),
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -15,7 +20,39 @@ export async function registerRoutes(
   // Setup authentication
   await setupAuth(app);
 
-  // Auth routes
+  // Password-based login
+  app.post('/api/auth/login', async (req: Request, res: Response) => {
+    try {
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request" });
+      }
+      
+      const { login_id, password } = parsed.data;
+      const authUser = await storage.validateLogin(login_id, password);
+      
+      if (!authUser) {
+        return res.status(401).json({ error: "Invalid login ID or password" });
+      }
+      
+      res.json({
+        user_id: authUser.id,
+        display_name: authUser.displayName,
+        location: authUser.location || "",
+        expertise: authUser.expertiseTags,
+        email: authUser.email,
+        precision: authUser.precision,
+        points: authUser.points,
+        tier: authUser.tier,
+        topic_precision: authUser.topicPrecision,
+      });
+    } catch (error) {
+      console.error("Error during login:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  // Auth routes (Replit Auth)
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
