@@ -228,6 +228,7 @@ export class DatabaseStorage implements IStorage {
         credibility_score: claim.credibilityScore || 0,
         relevancy_score: relevancyScore,
         votes: (claim.votes as Vote[]) || [],
+        evidence: (claim.evidence as { tool_name: string; content: string }[]) || [],
         community_notes: notes,
       });
     }

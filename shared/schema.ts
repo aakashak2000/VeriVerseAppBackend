@@ -251,6 +251,7 @@ export type FeedClaim = {
   credibility_score: number;
   relevancy_score: number;
   votes: Vote[];
+  evidence?: Evidence[];
   community_notes: CommunityNoteWithAuthor[];
 };
 

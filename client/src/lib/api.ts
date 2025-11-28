@@ -458,8 +458,18 @@ export async function fetchClaims(params: { userId?: string; sort?: "relevant" |
   }
 }
 
-// Create a new claim
-export async function createClaim(userId: string, text: string, topics?: string[]): Promise<{ claim_id: string }> {
+// Create a new claim (triggers AI verification via FastAPI)
+export interface CreateClaimResponse {
+  claim_id: string;
+  run_id: string | null;
+  status: string;
+  provisional_answer?: string;
+  confidence?: number;
+  votes?: Vote[];
+  evidence?: Array<{ tool_name: string; content: string }>;
+}
+
+export async function createClaim(userId: string, text: string, topics?: string[]): Promise<CreateClaimResponse> {
   try {
     const response = await fetch(`${API_BASE}/api/claims`, {
       method: "POST",
@@ -467,7 +477,7 @@ export async function createClaim(userId: string, text: string, topics?: string[
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        user_id: userId,
+        userId,
         text,
         topics: topics || [],
       }),
@@ -479,7 +489,12 @@ export async function createClaim(userId: string, text: string, topics?: string[
 
     return response.json();
   } catch (error) {
-    return { claim_id: `demo_claim_${Date.now()}` };
+    console.error("Error creating claim:", error);
+    return { 
+      claim_id: `demo_claim_${Date.now()}`,
+      run_id: null,
+      status: "queued",
+    };
   }
 }
 
