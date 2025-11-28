@@ -12,6 +12,7 @@ import SignupPage from "@/pages/SignupPage";
 import LoginPage from "@/pages/LoginPage";
 import FeedPage from "@/pages/FeedPage";
 import ProfilePage from "@/pages/ProfilePage";
+import ClaimDetailPage from "@/pages/ClaimDetailPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/" component={LandingPage} />
       <Route path="/ask" component={AskPage} />
       <Route path="/feed" component={FeedPage} />
+      <Route path="/claim/:claimId" component={ClaimDetailPage} />
       <Route path="/verify" component={VerifyPage} />
       <Route path="/history" component={HistoryPage} />
       <Route path="/rewards" component={RewardsPage} />
