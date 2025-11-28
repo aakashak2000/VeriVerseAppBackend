@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchClaims, addCommunityNote, getStoredUserId } from "@/lib/api";
 import type { FeedClaim, Vote, CommunityNoteWithAuthor } from "@shared/schema";
@@ -37,46 +37,60 @@ function getInitials(name: string): string {
 function getStatusBadge(status: string) {
   switch (status) {
     case "completed":
-      return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none" data-testid="status-completed"><CheckCircle2 className="h-3 w-3 mr-1" />Verified</Badge>;
+      return (
+        <Badge className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 border-none" data-testid="status-completed">
+          <CheckCircle2 className="h-3 w-3 mr-1" />Verified
+        </Badge>
+      );
     case "awaiting_votes":
-      return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none" data-testid="status-awaiting"><AlertCircle className="h-3 w-3 mr-1" />Awaiting Votes</Badge>;
+      return (
+        <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 border-none" data-testid="status-awaiting">
+          <AlertCircle className="h-3 w-3 mr-1" />Awaiting Votes
+        </Badge>
+      );
     case "in_progress":
-      return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none" data-testid="status-progress"><Clock className="h-3 w-3 mr-1" />In Progress</Badge>;
+      return (
+        <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 border-none" data-testid="status-progress">
+          <Clock className="h-3 w-3 mr-1" />In Progress
+        </Badge>
+      );
     default:
-      return <Badge className="bg-muted text-muted-foreground hover:bg-muted border-none" data-testid="status-queued"><Clock className="h-3 w-3 mr-1" />Queued</Badge>;
+      return (
+        <Badge className="bg-muted text-muted-foreground hover:bg-muted border-none" data-testid="status-queued">
+          <Clock className="h-3 w-3 mr-1" />Queued
+        </Badge>
+      );
   }
 }
 
 function getCredibilityColor(score: number): string {
-  if (score >= 0.8) return "text-green-600";
-  if (score >= 0.6) return "text-amber-600";
-  return "text-red-600";
+  if (score >= 0.8) return "text-green-600 dark:text-green-400";
+  if (score >= 0.6) return "text-amber-600 dark:text-amber-400";
+  return "text-red-600 dark:text-red-400";
 }
 
 function getCredibilityBgColor(score: number): string {
-  if (score >= 0.8) return "bg-green-50";
-  if (score >= 0.6) return "bg-amber-50";
-  return "bg-red-50";
+  if (score >= 0.8) return "bg-green-50 dark:bg-green-900/20";
+  if (score >= 0.6) return "bg-amber-50 dark:bg-amber-900/20";
+  return "bg-red-50 dark:bg-red-900/20";
 }
 
 interface ClaimCardProps {
   claim: FeedClaim;
-  onAddNote?: (claimId: string, note: string) => Promise<void>;
-  userId?: string | null;
+  onAddNote: (claimId: string, note: string) => void;
+  isPending: boolean;
+  userId: string | null;
 }
 
-function ClaimCard({ claim, onAddNote, userId }: ClaimCardProps) {
+function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmitNote = async () => {
-    if (!noteText.trim() || !onAddNote) return;
-    setIsSubmitting(true);
-    await onAddNote(claim.id, noteText.trim());
+  const handleSubmitNote = () => {
+    if (!noteText.trim()) return;
+    onAddNote(claim.id, noteText.trim());
     setNoteText("");
     setShowNoteInput(false);
-    setIsSubmitting(false);
   };
 
   const upvotes = claim.votes?.filter((v: Vote) => v.vote === 1).length || 0;
@@ -142,7 +156,7 @@ function ClaimCard({ claim, onAddNote, userId }: ClaimCardProps) {
         )}
 
         {claim.credibility_score !== undefined && claim.credibility_score > 0 && (
-          <div className="flex items-center gap-4 mb-4" data-testid={`credibility-${claim.id}`}>
+          <div className="flex items-center gap-4 mb-4 flex-wrap" data-testid={`credibility-${claim.id}`}>
             <div className={`flex items-center gap-2 ${getCredibilityColor(claim.credibility_score)}`}>
               <CheckCircle2 className="h-5 w-5" />
               <span className="text-lg font-bold">{Math.round(claim.credibility_score * 100)}%</span>
@@ -161,12 +175,12 @@ function ClaimCard({ claim, onAddNote, userId }: ClaimCardProps) {
             <p className="text-sm font-medium text-muted-foreground">
               Expert Votes ({claim.votes.length})
             </p>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1 text-green-600" data-testid={`upvotes-${claim.id}`}>
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1 text-green-600 dark:text-green-400" data-testid={`upvotes-${claim.id}`}>
                 <ThumbsUp className="h-4 w-4" />
                 <span className="text-sm font-medium">{upvotes}</span>
               </div>
-              <div className="flex items-center gap-1 text-red-600" data-testid={`downvotes-${claim.id}`}>
+              <div className="flex items-center gap-1 text-red-600 dark:text-red-400" data-testid={`downvotes-${claim.id}`}>
                 <ThumbsDown className="h-4 w-4" />
                 <span className="text-sm font-medium">{downvotes}</span>
               </div>
@@ -187,7 +201,7 @@ function ClaimCard({ claim, onAddNote, userId }: ClaimCardProps) {
             </p>
             <div className="space-y-2">
               {claim.community_notes.map((note: CommunityNoteWithAuthor) => (
-                <div key={note.id} className="bg-muted/50 rounded-lg p-3" data-testid={`note-${note.id}`}>
+                <div key={note.id} className="bg-muted/50 dark:bg-muted/30 rounded-lg p-3" data-testid={`note-${note.id}`}>
                   <div className="flex items-center gap-2 mb-1">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
@@ -235,16 +249,16 @@ function ClaimCard({ claim, onAddNote, userId }: ClaimCardProps) {
               <Button
                 size="sm"
                 onClick={handleSubmitNote}
-                disabled={!noteText.trim() || isSubmitting}
+                disabled={!noteText.trim() || isPending}
                 data-testid={`note-submit-${claim.id}`}
               >
                 <Send className="h-3 w-3 mr-1" />
-                {isSubmitting ? "Posting..." : "Post Note"}
+                {isPending ? "Posting..." : "Post Note"}
               </Button>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {userId && (
               <Button
                 variant="ghost"
@@ -299,32 +313,32 @@ function ClaimCardSkeleton() {
 }
 
 export default function FeedPage() {
-  const [claims, setClaims] = useState<FeedClaim[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDemo, setIsDemo] = useState(false);
+  const queryClient = useQueryClient();
   const [sortBy, setSortBy] = useState<"relevant" | "latest">("relevant");
   const userId = getStoredUserId();
 
-  const loadClaims = async () => {
-    setIsLoading(true);
-    const data = await fetchClaims({ userId: userId || undefined, sort: sortBy });
-    setClaims(data);
-    
-    const isDemoData = data.length > 0 && data[0].id?.startsWith("demo_");
-    setIsDemo(isDemoData);
-    
-    setIsLoading(false);
+  const { data: claims = [], isLoading, isError } = useQuery<FeedClaim[]>({
+    queryKey: ["/api/claims", sortBy, userId],
+    queryFn: () => fetchClaims({ userId: userId || undefined, sort: sortBy }),
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async ({ claimId, note }: { claimId: string; note: string }) => {
+      if (!userId) throw new Error("User not logged in");
+      await addCommunityNote(claimId, userId, note);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
+    },
+  });
+
+  const handleAddNote = (claimId: string, note: string) => {
+    addNoteMutation.mutate({ claimId, note });
   };
 
-  useEffect(() => {
-    loadClaims();
-  }, [sortBy, userId]);
-
-  const handleAddNote = async (claimId: string, note: string) => {
-    if (!userId) return;
-    await addCommunityNote(claimId, userId, note);
-    await loadClaims();
-  };
+  const isDemo = claims.length > 0 && claims[0].id?.startsWith("demo_");
 
   return (
     <Layout error={isDemo ? "Backend unavailable, running in demo mode" : null}>
@@ -338,7 +352,7 @@ export default function FeedPage() {
           </p>
         </div>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm text-muted-foreground">Sort by:</span>
@@ -369,6 +383,13 @@ export default function FeedPage() {
             <ClaimCardSkeleton />
             <ClaimCardSkeleton />
           </div>
+        ) : isError ? (
+          <Card className="p-8 text-center" data-testid="feed-error">
+            <p className="text-muted-foreground mb-4">Failed to load claims. Please try again.</p>
+            <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/claims"] })} data-testid="retry-button">
+              Retry
+            </Button>
+          </Card>
         ) : claims.length === 0 ? (
           <Card className="p-8 text-center" data-testid="feed-empty">
             <p className="text-muted-foreground mb-4">No claims to show yet.</p>
@@ -383,13 +404,14 @@ export default function FeedPage() {
                 key={claim.id}
                 claim={claim}
                 onAddNote={handleAddNote}
+                isPending={addNoteMutation.isPending}
                 userId={userId}
               />
             ))}
           </div>
         )}
 
-        <div className="mt-8 flex justify-center gap-4" data-testid="feed-actions">
+        <div className="mt-8 flex justify-center gap-4 flex-wrap" data-testid="feed-actions">
           <Link href="/ask">
             <Button data-testid="submit-claim-button">
               Submit New Claim

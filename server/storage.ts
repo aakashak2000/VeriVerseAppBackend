@@ -187,8 +187,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async seedDemoData(): Promise<void> {
-    const existingUsers = await db.select().from(users).limit(1);
-    if (existingUsers.length > 0) {
+    const existingClaims = await db.select().from(claims).limit(1);
+    if (existingClaims.length > 0) {
       console.log("Demo data already seeded, skipping...");
       return;
     }
@@ -247,13 +247,23 @@ export class DatabaseStorage implements IStorage {
     ];
 
     for (const user of demoUsers) {
-      await db.insert(users).values(user).onConflictDoNothing();
+      try {
+        const existingByEmail = await db.select().from(users).where(eq(users.email, user.email)).limit(1);
+        if (existingByEmail.length === 0) {
+          await db.insert(users).values(user).onConflictDoNothing();
+        }
+      } catch (e) {
+        console.log(`User ${user.id} already exists or has conflict`);
+      }
     }
+
+    const existingUserByEmail = await db.select().from(users).where(eq(users.email, "aakashak2000@gmail.com")).limit(1);
+    const aakashUserId = existingUserByEmail.length > 0 ? existingUserByEmail[0].id : "demo_aakash";
 
     const demoClaims = [
       {
         id: "claim_tech_apple",
-        userId: "demo_aakash",
+        userId: aakashUserId,
         prompt: "Apple is building a new AI data center in Mumbai.",
         topics: ["Technology", "AI", "India"],
         location: "Mumbai",
@@ -264,13 +274,13 @@ export class DatabaseStorage implements IStorage {
         credibilityScore: 0.89,
         relevancyScore: 0.92,
         votes: [
-          { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"] },
           { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy", match_reasons: ["domain_expert"] },
         ],
       },
       {
         id: "claim_sports_bcci",
-        userId: "demo_aakash",
+        userId: aakashUserId,
         prompt: "BCCI is planning a new T20 league in the USA.",
         topics: ["Sports", "Business"],
         location: "USA",
@@ -281,7 +291,7 @@ export class DatabaseStorage implements IStorage {
         credibilityScore: 0.85,
         relevancyScore: 0.78,
         votes: [
-          { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"] },
         ],
       },
       {
@@ -315,7 +325,7 @@ export class DatabaseStorage implements IStorage {
         relevancyScore: 0.88,
         votes: [
           { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "AI", location: "Nagpur", vote: 1, weight: 0.96, rationale: "Confirmed through tech industry sources", match_reasons: ["domain_expert", "topic_specialist"] },
-          { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified via OpenAI announcements", match_reasons: ["domain_expert"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified via OpenAI announcements", match_reasons: ["domain_expert"] },
         ],
       },
       {
@@ -388,7 +398,7 @@ export class DatabaseStorage implements IStorage {
     const demoNotes = [
       { id: "note_1", claimId: "claim_tech_apple", userId: "demo_parth", note: "I've seen construction activity near the proposed site. This seems legit." },
       { id: "note_2", claimId: "claim_finance_rbi", userId: "demo_aneesha", note: "RBI has been actively publishing research on this. The pilot is already underway in select states." },
-      { id: "note_3", claimId: "claim_business_openai", userId: "demo_aakash", note: "Spoke with someone at an OpenAI partner company. They confirmed the India plans." },
+      { id: "note_3", claimId: "claim_business_openai", userId: aakashUserId, note: "Spoke with someone at an OpenAI partner company. They confirmed the India plans." },
       { id: "note_4", claimId: "claim_geo_expressway", userId: "demo_parth", note: "The project was officially inaugurated last month. Construction is on schedule." },
     ];
 

@@ -386,15 +386,19 @@ export async function fetchClaims(params: { userId?: string; sort?: "relevant" |
     const response = await fetch(`${API_BASE}/api/claims?${queryParams.toString()}`);
 
     if (!response.ok) {
-      throw new Error("Failed to fetch claims");
+      console.warn("Backend unavailable, using demo data");
+      return DEMO_FEED;
     }
 
     const data = await response.json();
-    if (!data || data.length === 0) {
-      return DEMO_FEED;
+    
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
     }
-    return data;
+    
+    return DEMO_FEED;
   } catch (error) {
+    console.warn("Failed to fetch claims, using demo data:", error);
     return DEMO_FEED;
   }
 }
