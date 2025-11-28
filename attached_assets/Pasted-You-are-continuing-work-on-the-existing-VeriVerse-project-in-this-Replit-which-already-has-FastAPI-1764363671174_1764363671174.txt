@@ -1,0 +1,172 @@
+You are continuing work on the existing VeriVerse project in this Replit, which already has:
+FastAPI backend + storage
+React/Vite/Tailwind frontend
+User signup, history, leaderboard
+Community feed (/feed) with seeded expert users and claims
+Integration or partial integration with the Mumbai_Hacks backend patterns
+I now want to extend this into a more realistic social platform with proper login, full activity profiles, and vote-linked notes, while keeping everything REST-based and minimal in design.
+Please follow these steps carefully and then give me a detailed report at the end.
+1️⃣ Authentication & Login (Password-Based)
+Auth model
+Keep the existing “user profile” fields (name, email, location, expertise, precision, topic_precision, etc.).
+Add fields for authentication:
+login_id (string, unique – can be same as email for now)
+password_hash (store a hashed password, e.g. bcrypt or a simple hash for demo; do NOT store plain text).
+For demo: you can seed known login IDs and plain-text passwords, but in the DB they must be hashed.
+Seed users with logins
+Seed/update the following 4 users in the DB, ensuring they can actually log in:
+Aakash Kumar
+Email: aakashak2000@gmail.com
+Login ID: aakash
+Password: aakash123
+Location: Mumbai
+Expertise: ["Technology", "Sports"]
+Precision & topic_precision: use the existing demo values you already created for Aakash (high tech/sports precision).
+Aneesha Manke
+Email: aneeshamanke@gmail.com
+Login ID: aneesha
+Password: aneesha123
+Location: Nagpur
+Expertise: ["Business", "Product", "AI", "Finance"]
+Shaurya Negi
+Email: shauryanegi17@gmail.com
+Login ID: shaurya
+Password: shaurya123
+Location: Dehradhun
+Expertise: ["Finance", "Geography", "Tech"]
+Parth Joshi
+Email: parth010872@gmail.com
+Login ID: parth
+Password: parth123
+Location: Gujarat
+Expertise: ["Technology", "Food", "India"]
+Use your existing seed logic but ensure that if these users already exist, you update them with login_id + password_hash, not duplicate.
+Backend auth endpoints (REST only)
+Under the existing FastAPI setup, add:
+POST /api/auth/login
+Request: { "login_id": string, "password": string }
+Response (on success): { "user_id": string, "display_name": string, "location": string, "expertise": string[] }
+On failure: return 401 with a simple error message.
+For this MVP, you can implement a very simple session: either return just this JSON and have the frontend store it in localStorage, or issue a simple signed token (but no need for full JWT complexity if time is short).
+Optionally keep /signup for new users, but ensure that if you allow new signups, you also create a login_id and password for them.
+Frontend login page
+There is currently only a sign-up page; add a separate Login page at /login:
+Fields: Login ID, Password
+Button: “Log In”
+On success, store { user_id, display_name, location, expertise } in local storage / context.
+Redirect to /feed or /ask.
+Update the top navigation:
+When not logged in: show “Login” and “Sign Up”.
+When logged in: show the current user’s display name and menu items: “Feed”, “Ask”, “My History”, maybe “Logout”.
+Do NOT overcomplicate the UI; keep it minimal and aligned with the existing style.
+2️⃣ Feed & Posts from Real Users (not just votes)
+Ensure feed shows posts by multiple authors
+At present, the feed shows claims with author info and expert votes.
+Confirm that:
+Any logged-in user (e.g., Aakash) can:
+Go to /ask or another simple input form (could be on /feed as a “New Claim” card).
+Post a claim such as: “The weather in Mumbai has peaked AQI”.
+This creates a new claim via POST /api/claims and associates it with that user as author_id.
+That claim appears in /feed as a card with Aakash as author.
+Voting & notes by other users
+When other users like Aneesha or Parth log in:
+They should see Aakash’s claim in the feed (sorted appropriately).
+From either the feed card or the claim detail page:
+They can cast a vote (up/down) on that claim.
+They can also add a community note tied to that specific vote.
+3️⃣ Community Notes = Per-Vote Notes (Not Global)
+Right now you implemented community notes at the claim level. I want to refine this:
+Backend changes
+Refactor notes to be attached to votes, not standalone claim-level notes:
+Each vote object should have an optional note field:
+{ user_id, vote, weight, rationale, topic, note?: string }
+The API for adding a note should be something like:
+POST /api/claims/{claim_id}/votes/{vote_id}/note
+Request: { "user_id": string, "note": string }
+For MVP: you can combine vote creation and note posting, or create a separate endpoint to update a vote’s note.
+Frontend behavior
+On the claim detail page:
+Next to each vote row (where you show the voter, their expertise, and the thumb), show an “i” icon or “Add note” link.
+Clicking it opens a tiny input (textarea or text field) to add/edit the note for that vote.
+Once submitted, it updates that vote’s note and re-renders.
+When other users view the Post, they see those notes as comments attached to the corresponding votes.
+On the feed:
+For each claim card:
+Show a small snippet: e.g. the first 1–2 notes or a count of “3 community notes”.
+Clicking it opens a popover or expands the card to show the notes, aligned with the votes if possible.
+Important: Only the person who cast that vote should be able to edit their own note.
+4️⃣ Dynamic Relevancy for Different Users
+The feed already has relevancy logic. Now ensure it behaves as follows:
+User-dependent relevancy
+When GET /api/claims is called with a user_id:
+Compute relevancy_score for that specific user, using:
+Their topic expertise (claimed tags).
+Their topic_precision stats.
+Example:
+If Aakash has high tech precision, a tech claim should be highly relevant to him.
+If Aneesha doesn’t have relevant expertise for a sports claim, that sports claim should be less relevant in her feed, but maybe more relevant in Aakash’s feed.
+You can make this as simple as:
+relevancy_score = sum_over_votes( voter.precision * topic_match * viewer_topic_weight )
+Or something like:
+If claim.topic in viewer.expertise → base_weight = 1, else 0.5
+Multiply by global engagement metrics if you have them seeded.
+Demo behavior to test
+Log in as Aakash:
+Make sure a tech claim appears near the top in “Most Relevant”.
+Log in as Aneesha:
+A finance or AI claim should rise higher than a sports claim.
+Log in as Parth:
+India/food/tech claims should rise higher.
+5️⃣ Profile / Stats / History (Self & Others)
+Own profile
+For the logged-in user, create a Profile page, e.g., /profile:
+Show:
+Name, location, expertise tags.
+Overall precision.
+Topic-wise precision (maybe a simple list).
+History: both
+Posts they made (claims they authored)
+Activity like votes and notes they added.
+You can reuse the existing HistoryPage logic; just extend it to also include votes & notes.
+Viewing others’ activity
+From a claim card (or from the feed):
+Clicking an author’s name should open a public profile view:
+Show the author’s name, expertise, approximate precision, and a list of:
+Their recent posts.
+Optionally, recent public votes/notes (for demo, even a simple summary is enough).
+This does not require full auth for the viewer (just read-only).
+6️⃣ Integrate With & Validate Latest Mumbai_Hacks Repository
+Now, very important:
+Sync with GitHub
+Pull or compare against the latest version of:
+https://github.com/aneeshamanke/Mumbai_Hacks
+Check:
+If the FastAPI gateway, orchestrator, and voting services in this Replit project match the latest Mumbai_Hacks repo structure and endpoints.
+Any changes in:
+Endpoint paths/URLs (/prompts, /runs/{id}, /leaderboard, now /claims, etc.)
+Request/response shapes
+Storage schema
+Integration checks
+Verify that:
+The frontend can successfully:
+Call POST /prompts to trigger the agentic workflow.
+Poll GET /runs/{id} to get AI responses and votes.
+Use /api/claims and the new endpoints consistently (same base path, e.g. /api/... vs bare /...).
+The backend:
+Properly triggers the orchestrator / Gemini / web search pipeline where intended.
+Properly records runs, votes, and updates user stats.
+If you find any mismatch between this Replit project and the latest Mumbai_Hacks repo (e.g., missing routes, outdated schemas), fix them so the whole system is coherent.
+Missing elements
+If Mumbai_Hacks is missing any pieces needed for this integration (e.g., missing environment variables, incomplete worker scripts, not exposing endpoints you’re now using), document that clearly and, where possible, scaffold the missing bits.
+Final report
+After implementing all the above, please provide a detailed written report (in replit.md and in your chat summary) that covers:
+Current state of the entire solution:
+Frontend pages/routes and their purpose (/, /ask, /feed, /verify, /history, /signup, /login, /profile, etc.).
+Backend endpoints and what they do (auth, prompts, runs, claims, notes, leaderboard, seeding).
+How authentication works (where users are stored, how login works, how sessions are tracked).
+How relevancy and credibility are computed, including any formulas or heuristics.
+How the agentic AI pipeline is integrated (from Mumbai_Hacks): which endpoints call which services.
+How demo data is seeded and how a judge/user can reproduce a realistic scenario:
+Example: “Log in as Aakash, post a claim about Mumbai AQI, log in as Aneesha and Parth to vote and add notes, then refresh feed and profile to see everything updated.”
+Any known limitations or TODOs.
+Keep everything REST-based, minimal, and working end-to-end. Don’t introduce WebSockets. Maintain the current minimal palette and social-like but clean UI.

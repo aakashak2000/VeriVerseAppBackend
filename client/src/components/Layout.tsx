@@ -12,6 +12,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { getStoredUserId, clearStoredUserId } from "@/lib/api";
+import logoImage from "@assets/image_1764363691423.png";
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -171,10 +172,11 @@ export default function Layout({ children, error }: LayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4">
           <Link href="/" data-testid="link-logo">
-            <span className="relative text-xl font-bold text-foreground">
-              VeriVerse
-              <span className="absolute bottom-0 left-0 h-0.5 w-full bg-primary"></span>
-            </span>
+            <img 
+              src={logoImage} 
+              alt="VeriVerse" 
+              className="h-8 dark:invert"
+            />
           </Link>
 
           <nav className="flex items-center gap-1">
