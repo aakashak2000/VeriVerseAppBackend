@@ -1,0 +1,47 @@
+Convert VeriVerse from dummy votes to real user voting:
+
+BACKEND CHANGES:
+
+1. FastAPI (api_gateway/main.py):
+- Remove all auto-generated votes from create_prompt() - return empty votes array
+- Keep status="completed", provisional_answer, evidence, but votes=[]
+- Add new endpoint: POST /votes with body {run_id, user_id, vote: 1 or -1, rationale}
+- Store vote, recalculate confidence, return updated run state
+
+2. Express (server/routes.ts):
+- Add POST /api/claims/:claimId/vote accepting {userId, vote: 1|-1, rationale}
+- Call FastAPI POST /votes, update claim in DB, return updated claim
+- Update POST /api/claims/:claimId/notes to check: user cannot add note to their own claim (userId !== claim.userId)
+
+FRONTEND CHANGES:
+
+3. Feed page (client/src/pages/FeedPage.tsx):
+- Make each claim card clickable → navigate to /claim/:claimId
+- Show vote counts but no vote buttons on cards
+
+4. New claim detail page (client/src/pages/ClaimDetailPage.tsx):
+- Route: /claim/:claimId
+- Load claim data from GET /api/claims/:claimId
+- Display like /ask result page: provisional_answer, confidence bar, evidence chips, votes list
+- Add vote buttons (👍 Agree / 👎 Disagree) with rationale textarea - only show if user is logged in AND hasn't voted yet
+- On vote submit: POST /api/claims/:claimId/vote, reload claim data
+- Show community notes section - only allow adding notes if userId !== claim author AND user hasn't added note yet
+- Use evidence from API response in evidence section
+
+5. Ask page (client/src/pages/AskPage.tsx):
+- After posting claim and getting result, show "View in Feed" button linking to /claim/:claimId
+- Keep verification display as-is
+
+6. API client (client/src/lib/api.ts):
+- Add submitVote(claimId, userId, vote, rationale)
+- Update fetchClaims to use real backend data, remove DEMO_FEED fallback
+- Add getClaim(claimId) for detail page
+
+VALIDATION:
+- Users must login to vote or add notes
+- Users cannot vote twice on same claim
+- Users cannot add notes to own claims
+- Confidence recalculates on each vote
+- Feed shows real-time vote counts
+
+Keep existing auth, minimal UI design, REST-only architecture.

@@ -1,4 +1,14 @@
-import type { RunState, Leaderboard, PromptResponse, SignupUser, User, ClaimHistoryItem, FeedClaim, Vote, CommunityNoteWithAuthor } from "@shared/schema";
+import type {
+  RunState,
+  Leaderboard,
+  PromptResponse,
+  SignupUser,
+  User,
+  ClaimHistoryItem,
+  FeedClaim,
+  Vote,
+  CommunityNoteWithAuthor,
+} from "@shared/schema";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 
@@ -9,7 +19,8 @@ const DEMO_HISTORY: ClaimHistoryItem[] = [
     run_id: "demo_run_1",
     prompt: "Scientists discover water has memory and can store information",
     status: "completed",
-    provisional_answer: "This claim is partially accurate. While water molecules can form temporary structures, there is no scientific evidence that water can 'store information' in a meaningful way.",
+    provisional_answer:
+      "This claim is partially accurate. While water molecules can form temporary structures, there is no scientific evidence that water can 'store information' in a meaningful way.",
     confidence: 0.72,
     vote_count: 4,
     created_at: new Date(Date.now() - 86400000).toISOString(),
@@ -19,7 +30,8 @@ const DEMO_HISTORY: ClaimHistoryItem[] = [
     run_id: "demo_run_2",
     prompt: "New study shows 5G towers cause health problems",
     status: "completed",
-    provisional_answer: "This claim is false. Multiple peer-reviewed studies have found no evidence linking 5G technology to health problems.",
+    provisional_answer:
+      "This claim is false. Multiple peer-reviewed studies have found no evidence linking 5G technology to health problems.",
     confidence: 0.89,
     vote_count: 6,
     created_at: new Date(Date.now() - 172800000).toISOString(),
@@ -28,11 +40,46 @@ const DEMO_HISTORY: ClaimHistoryItem[] = [
 
 const DEMO_LEADERBOARD: Leaderboard = {
   entries: [
-    { user_id: "u1", name: "Aarav", precision: 0.91, attempts: 37, points: 1200, tier: "Diamond" },
-    { user_id: "u2", name: "Maya", precision: 0.84, attempts: 21, points: 980, tier: "Platinum" },
-    { user_id: "u3", name: "Priya", precision: 0.79, attempts: 45, points: 850, tier: "Gold" },
-    { user_id: "u4", name: "Arjun", precision: 0.72, attempts: 18, points: 620, tier: "Silver" },
-    { user_id: "u5", name: "Anika", precision: 0.68, attempts: 12, points: 420, tier: "Bronze" },
+    {
+      user_id: "u1",
+      name: "Aarav",
+      precision: 0.91,
+      attempts: 37,
+      points: 1200,
+      tier: "Diamond",
+    },
+    {
+      user_id: "u2",
+      name: "Maya",
+      precision: 0.84,
+      attempts: 21,
+      points: 980,
+      tier: "Platinum",
+    },
+    {
+      user_id: "u3",
+      name: "Priya",
+      precision: 0.79,
+      attempts: 45,
+      points: 850,
+      tier: "Gold",
+    },
+    {
+      user_id: "u4",
+      name: "Arjun",
+      precision: 0.72,
+      attempts: 18,
+      points: 620,
+      tier: "Silver",
+    },
+    {
+      user_id: "u5",
+      name: "Anika",
+      precision: 0.68,
+      attempts: 12,
+      points: 420,
+      tier: "Bronze",
+    },
   ],
 };
 
@@ -42,50 +89,65 @@ const createDemoRunState = (runId: string, prompt: string): RunState => ({
   provisional_answer: `Based on our analysis using multiple verification tools, the claim "${prompt.substring(0, 50)}${prompt.length > 50 ? "..." : ""}" appears to be partially accurate. We found corroborating evidence from trusted sources, though some details could not be independently verified. Community reviewers have weighed in with additional context.`,
   confidence: 0.78,
   votes: [
-    { 
-      user_id: "u1", 
+    {
+      user_id: "u1",
       name: "Dr. Sarah Chen",
       domain: "ML Engineering",
       location: "San Francisco",
-      vote: 1, 
-      weight: 0.9, 
-      rationale: "Found supporting evidence from Reuters and verified through peer-reviewed sources",
-      match_reasons: ["domain_expert", "location_match", "verified_professional"],
+      vote: 1,
+      weight: 0.9,
+      rationale:
+        "Found supporting evidence from Reuters and verified through peer-reviewed sources",
+      match_reasons: [
+        "domain_expert",
+        "location_match",
+        "verified_professional",
+      ],
     },
-    { 
-      user_id: "u2", 
+    {
+      user_id: "u2",
       name: "Alex Kumar",
       domain: "DevOps",
       location: "London",
-      vote: 1, 
-      weight: 0.7, 
-      rationale: "Verified through official technical documentation and industry standards",
+      vote: 1,
+      weight: 0.7,
+      rationale:
+        "Verified through official technical documentation and industry standards",
       match_reasons: ["domain_expert", "high_reputation"],
     },
-    { 
-      user_id: "u3", 
+    {
+      user_id: "u3",
       name: "Jordan Martinez",
       domain: "Cloud Architecture",
       location: "New York",
-      vote: 1, 
-      weight: 0.6, 
-      rationale: "Cross-referenced with cloud provider best practices documentation",
+      vote: 1,
+      weight: 0.6,
+      rationale:
+        "Cross-referenced with cloud provider best practices documentation",
       match_reasons: ["topic_specialist", "location_match"],
     },
-    { 
-      user_id: "u4", 
+    {
+      user_id: "u4",
       name: "Emma Thompson",
       domain: "Data Science",
       location: "Berlin",
-      vote: -1, 
-      weight: 0.5, 
+      vote: -1,
+      weight: 0.5,
       rationale: "Some claims require additional statistical validation",
       match_reasons: ["domain_expert"],
     },
   ],
   evidence: [
-    { tool_name: "google_search", content: "Found 3 relevant articles from major news outlets discussing this topic with similar claims." },
-    { tool_name: "crawler", content: "Verified claim appears in official press releases and government documents." },
+    {
+      tool_name: "google_search",
+      content:
+        "Found 3 relevant articles from major news outlets discussing this topic with similar claims.",
+    },
+    {
+      tool_name: "crawler",
+      content:
+        "Verified claim appears in official press releases and government documents.",
+    },
   ],
 });
 
@@ -96,13 +158,13 @@ export async function createPrompt(prompt: string): Promise<PromptResponse> {
   try {
     // Include user_id if logged in for proper claim storage
     const loggedInUser = getLoggedInUser();
-    
+
     const response = await fetch(`${API_BASE}/api/prompts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         prompt,
         user_id: loggedInUser?.user_id,
       }),
@@ -125,7 +187,7 @@ export async function createPrompt(prompt: string): Promise<PromptResponse> {
 
 export async function getRun(runId: string): Promise<RunState> {
   if (runId.startsWith("demo_run_")) {
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     return createDemoRunState(runId, storedDemoPrompt);
   }
 
@@ -190,7 +252,10 @@ export type LoginResult = {
 
 const LOGGED_IN_USER_KEY = "veriverse_logged_in_user";
 
-export async function loginUser(loginId: string, password: string): Promise<LoginResult | null> {
+export async function loginUser(
+  loginId: string,
+  password: string,
+): Promise<LoginResult | null> {
   try {
     const response = await fetch(`${API_BASE}/api/auth/login`, {
       method: "POST",
@@ -231,7 +296,9 @@ export function logoutUser(): void {
 }
 
 // Create user (signup)
-export async function createUser(data: SignupUser): Promise<{ user_id: string } & User> {
+export async function createUser(
+  data: SignupUser,
+): Promise<{ user_id: string } & User> {
   try {
     const response = await fetch(`${API_BASE}/api/users`, {
       method: "POST",
@@ -280,7 +347,7 @@ export async function createUser(data: SignupUser): Promise<{ user_id: string } 
 export async function getUser(userId: string): Promise<User | null> {
   try {
     const response = await fetch(`${API_BASE}/api/users/${userId}`);
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         return null;
@@ -317,7 +384,9 @@ export async function getUser(userId: string): Promise<User | null> {
 }
 
 // Get user history
-export async function getUserHistory(userId: string): Promise<ClaimHistoryItem[]> {
+export async function getUserHistory(
+  userId: string,
+): Promise<ClaimHistoryItem[]> {
   if (userId === "demo" || userId.startsWith("demo_user_")) {
     return DEMO_HISTORY;
   }
@@ -356,14 +425,36 @@ const DEMO_FEED: FeedClaim[] = [
       location: "Mumbai",
       expertise: ["Technology", "Sports"],
     },
-    ai_summary: "Verified by tech experts. Multiple sources confirm Apple's expansion plans in India.",
-    provisional_answer: "This claim appears to be accurate. Apple has announced plans for significant infrastructure investment in India.",
+    ai_summary:
+      "Verified by tech experts. Multiple sources confirm Apple's expansion plans in India.",
+    provisional_answer:
+      "This claim appears to be accurate. Apple has announced plans for significant infrastructure investment in India.",
     confidence: 0.87,
     credibility_score: 0.89,
     relevancy_score: 0.92,
     votes: [
-      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"], note: "I've tracked Apple's India expansion for years - this aligns with their stated plans." },
-      { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy", match_reasons: ["domain_expert"], note: "I've seen construction activity near the proposed site in Bangalore." },
+      {
+        user_id: "demo_aakash",
+        name: "Aakash Kumar",
+        domain: "Technology",
+        location: "Mumbai",
+        vote: 1,
+        weight: 0.95,
+        rationale: "Verified through industry sources",
+        match_reasons: ["domain_expert", "location_match"],
+        note: "I've tracked Apple's India expansion for years - this aligns with their stated plans.",
+      },
+      {
+        user_id: "demo_parth",
+        name: "Parth Joshi",
+        domain: "Technology",
+        location: "Gujarat",
+        vote: 1,
+        weight: 0.82,
+        rationale: "Consistent with Apple's India strategy",
+        match_reasons: ["domain_expert"],
+        note: "I've seen construction activity near the proposed site in Bangalore.",
+      },
     ],
     community_notes: [],
   },
@@ -380,14 +471,36 @@ const DEMO_FEED: FeedClaim[] = [
       location: "Nagpur",
       expertise: ["Business", "Product", "AI", "Finance"],
     },
-    ai_summary: "Finance and AI experts validate this initiative. The RBI has been exploring fintech solutions.",
-    provisional_answer: "This claim is verified. RBI has announced pilot programs for AI-based credit scoring.",
+    ai_summary:
+      "Finance and AI experts validate this initiative. The RBI has been exploring fintech solutions.",
+    provisional_answer:
+      "This claim is verified. RBI has announced pilot programs for AI-based credit scoring.",
     confidence: 0.91,
     credibility_score: 0.93,
     relevancy_score: 0.95,
     votes: [
-      { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Finance", location: "Nagpur", vote: 1, weight: 0.92, rationale: "Verified through RBI publications", match_reasons: ["domain_expert", "verified_professional"], note: "RBI has been actively publishing research on this. The pilot is already underway in select districts." },
-      { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends", match_reasons: ["domain_expert"], note: "This aligns with the Digital India financial inclusion initiatives I've been following." },
+      {
+        user_id: "demo_aneesha",
+        name: "Aneesha Manke",
+        domain: "Finance",
+        location: "Nagpur",
+        vote: 1,
+        weight: 0.92,
+        rationale: "Verified through RBI publications",
+        match_reasons: ["domain_expert", "verified_professional"],
+        note: "RBI has been actively publishing research on this. The pilot is already underway in select districts.",
+      },
+      {
+        user_id: "demo_shaurya",
+        name: "Shaurya Negi",
+        domain: "Finance",
+        location: "Dehradun",
+        vote: 1,
+        weight: 0.88,
+        rationale: "Consistent with fintech policy trends",
+        match_reasons: ["domain_expert"],
+        note: "This aligns with the Digital India financial inclusion initiatives I've been following.",
+      },
     ],
     community_notes: [],
   },
@@ -404,13 +517,25 @@ const DEMO_FEED: FeedClaim[] = [
       location: "Mumbai",
       expertise: ["Technology", "Sports"],
     },
-    ai_summary: "Sports industry experts confirm BCCI's expansion plans for North American cricket.",
-    provisional_answer: "This claim is likely accurate based on recent BCCI announcements.",
+    ai_summary:
+      "Sports industry experts confirm BCCI's expansion plans for North American cricket.",
+    provisional_answer:
+      "This claim is likely accurate based on recent BCCI announcements.",
     confidence: 0.82,
     credibility_score: 0.85,
     relevancy_score: 0.78,
     votes: [
-      { user_id: "demo_aakash", name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"], note: "Major League Cricket's success seems to be driving BCCI's interest in the US market." },
+      {
+        user_id: "demo_aakash",
+        name: "Aakash Kumar",
+        domain: "Sports",
+        location: "Mumbai",
+        vote: 1,
+        weight: 0.88,
+        rationale: "Confirmed by multiple sports news outlets",
+        match_reasons: ["domain_expert"],
+        note: "Major League Cricket's success seems to be driving BCCI's interest in the US market.",
+      },
     ],
     community_notes: [],
   },
@@ -427,10 +552,12 @@ const DEMO_FEED: FeedClaim[] = [
       location: "Gujarat",
       expertise: ["Technology", "Food", "India"],
     },
-    ai_summary: "Limited expert coverage for this topic. Claim requires more verification.",
-    provisional_answer: "This claim needs more verification. Our experts have limited coverage in Brazilian agriculture.",
+    ai_summary:
+      "Limited expert coverage for this topic. Claim requires more verification.",
+    provisional_answer:
+      "This claim needs more verification. Our experts have limited coverage in Brazilian agriculture.",
     confidence: 0.45,
-    credibility_score: 0.40,
+    credibility_score: 0.4,
     relevancy_score: 0.25,
     votes: [],
     community_notes: [],
@@ -438,29 +565,56 @@ const DEMO_FEED: FeedClaim[] = [
 ];
 
 // Fetch all claims for the feed
-export async function fetchClaims(params: { userId?: string; sort?: "relevant" | "latest" }): Promise<FeedClaim[]> {
+// export async function fetchClaims(params: { userId?: string; sort?: "relevant" | "latest" }): Promise<FeedClaim[]> {
+//   try {
+//     const queryParams = new URLSearchParams();
+//     if (params.userId) queryParams.set("userId", params.userId);
+//     if (params.sort) queryParams.set("sort", params.sort);
+
+//     const response = await fetch(`${API_BASE}/api/claims?${queryParams.toString()}`);
+
+//     if (!response.ok) {
+//       console.warn("Backend unavailable, using demo data");
+//       return DEMO_FEED;
+//     }
+
+//     const data = await response.json();
+
+//     if (Array.isArray(data) && data.length > 0) {
+//       return data;
+//     }
+
+//     return DEMO_FEED;
+//   } catch (error) {
+//     console.warn("Failed to fetch claims, using demo data:", error);
+//     return DEMO_FEED;
+//   }
+// }
+
+export async function fetchClaims(params?: {
+  userId?: string;
+  sort?: "relevant" | "latest";
+}): Promise<FeedClaim[]> {
   try {
     const queryParams = new URLSearchParams();
-    if (params.userId) queryParams.set("userId", params.userId);
-    if (params.sort) queryParams.set("sort", params.sort);
+    if (params?.userId) queryParams.set("userId", params.userId);
+    if (params?.sort) queryParams.set("sort", params.sort);
 
-    const response = await fetch(`${API_BASE}/api/claims?${queryParams.toString()}`);
+    const response = await fetch(
+      `${API_BASE}/api/claims?${queryParams.toString()}`,
+    );
 
     if (!response.ok) {
-      console.warn("Backend unavailable, using demo data");
-      return DEMO_FEED;
+      throw new Error("Backend unavailable");
     }
 
     const data = await response.json();
-    
-    if (Array.isArray(data) && data.length > 0) {
-      return data;
-    }
-    
-    return DEMO_FEED;
+
+    // Don't fallback to demo - return actual data
+    return data;
   } catch (error) {
-    console.warn("Failed to fetch claims, using demo data:", error);
-    return DEMO_FEED;
+    console.warn("Failed to fetch claims:", error);
+    return []; // Return empty, not DEMO_FEED
   }
 }
 
@@ -475,7 +629,11 @@ export interface CreateClaimResponse {
   evidence?: Array<{ tool_name: string; content: string }>;
 }
 
-export async function createClaim(userId: string, text: string, topics?: string[]): Promise<CreateClaimResponse> {
+export async function createClaim(
+  userId: string,
+  text: string,
+  topics?: string[],
+): Promise<CreateClaimResponse> {
   try {
     const response = await fetch(`${API_BASE}/api/claims`, {
       method: "POST",
@@ -496,7 +654,7 @@ export async function createClaim(userId: string, text: string, topics?: string[
     return response.json();
   } catch (error) {
     console.error("Error creating claim:", error);
-    return { 
+    return {
       claim_id: `demo_claim_${Date.now()}`,
       run_id: null,
       status: "queued",
@@ -505,7 +663,11 @@ export async function createClaim(userId: string, text: string, topics?: string[
 }
 
 // Add a community note to a claim
-export async function addCommunityNote(claimId: string, userId: string, note: string): Promise<void> {
+export async function addCommunityNote(
+  claimId: string,
+  userId: string,
+  note: string,
+): Promise<void> {
   try {
     const response = await fetch(`${API_BASE}/api/claims/${claimId}/notes`, {
       method: "POST",
@@ -527,15 +689,22 @@ export async function addCommunityNote(claimId: string, userId: string, note: st
 }
 
 // Add a note to an existing vote
-export async function addVoteNote(claimId: string, voteUserId: string, note: string): Promise<boolean> {
+export async function addVoteNote(
+  claimId: string,
+  voteUserId: string,
+  note: string,
+): Promise<boolean> {
   try {
-    const response = await fetch(`${API_BASE}/api/claims/${claimId}/votes/${voteUserId}/note`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${API_BASE}/api/claims/${claimId}/votes/${voteUserId}/note`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ note }),
       },
-      body: JSON.stringify({ note }),
-    });
+    );
 
     if (!response.ok) {
       throw new Error("Failed to add vote note");

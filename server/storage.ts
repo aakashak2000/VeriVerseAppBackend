@@ -19,6 +19,9 @@ export interface IStorage {
   addCommunityNote(data: InsertCommunityNote): Promise<CommunityNote>;
   getClaimNotes(claimId: string): Promise<CommunityNoteWithAuthor[]>;
   addVoteNote(claimId: string, voteUserId: string, note: string): Promise<boolean>;
+  addVote(claimId: string, userId: string, vote: 1 | -1, rationale: string): Promise<{ success: boolean; error?: string; claim?: Claim }>;
+  hasUserVoted(claimId: string, userId: string): Promise<boolean>;
+  hasUserAddedNote(claimId: string, userId: string): Promise<boolean>;
   seedDemoData(): Promise<void>;
 }
 
@@ -290,6 +293,84 @@ export class DatabaseStorage implements IStorage {
       .where(eq(claims.id, claimId));
     
     return true;
+  }
+
+  async hasUserVoted(claimId: string, userId: string): Promise<boolean> {
+    const claim = await this.getClaim(claimId);
+    if (!claim) return false;
+    
+    const votes = (claim.votes as Vote[]) || [];
+    return votes.some(v => v.user_id === userId);
+  }
+
+  async hasUserAddedNote(claimId: string, userId: string): Promise<boolean> {
+    const notes = await db
+      .select()
+      .from(communityNotes)
+      .where(eq(communityNotes.claimId, claimId));
+    
+    return notes.some(n => n.userId === userId);
+  }
+
+  async addVote(claimId: string, userId: string, vote: 1 | -1, rationale: string): Promise<{ success: boolean; error?: string; claim?: Claim }> {
+    const claim = await this.getClaim(claimId);
+    if (!claim) {
+      return { success: false, error: "Claim not found" };
+    }
+
+    const existingVotes = (claim.votes as Vote[]) || [];
+    
+    if (existingVotes.some(v => v.user_id === userId)) {
+      return { success: false, error: "User has already voted on this claim" };
+    }
+
+    const user = await this.getUser(userId);
+    if (!user) {
+      return { success: false, error: "User not found" };
+    }
+
+    const newVote: Vote = {
+      user_id: userId,
+      name: user.displayName || "Anonymous",
+      domain: (user.expertiseTags as string[])?.[0] || "General",
+      location: user.location || "",
+      vote: vote,
+      weight: user.precision || 0.5,
+      rationale: rationale,
+      match_reasons: [],
+    };
+
+    const updatedVotes = [...existingVotes, newVote];
+
+    const upvotes = updatedVotes.filter(v => v.vote === 1).length;
+    const downvotes = updatedVotes.filter(v => v.vote === -1).length;
+    const totalVotes = updatedVotes.length;
+    
+    const weightedSum = updatedVotes.reduce((sum, v) => sum + (v.vote * v.weight), 0);
+    const totalWeight = updatedVotes.reduce((sum, v) => sum + v.weight, 0);
+    const newConfidence = totalWeight > 0 
+      ? Math.max(0, Math.min(1, 0.5 + (weightedSum / totalWeight) * 0.5))
+      : 0.5;
+
+    const newCredibilityScore = totalVotes > 0 
+      ? upvotes / totalVotes 
+      : 0;
+
+    const newStatus = totalVotes >= 2 ? "completed" : "awaiting_votes";
+
+    const [updatedClaim] = await db
+      .update(claims)
+      .set({
+        votes: updatedVotes,
+        confidence: newConfidence,
+        credibilityScore: newCredibilityScore,
+        status: newStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(claims.id, claimId))
+      .returning();
+
+    return { success: true, claim: updatedClaim };
   }
 
   async seedDemoData(): Promise<void> {

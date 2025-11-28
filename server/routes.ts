@@ -384,6 +384,15 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Claim not found" });
       }
 
+      if (claim.userId === user_id) {
+        return res.status(403).json({ error: "Cannot add a note to your own claim" });
+      }
+
+      const hasExistingNote = await storage.hasUserAddedNote(claimId, user_id);
+      if (hasExistingNote) {
+        return res.status(403).json({ error: "You have already added a note to this claim" });
+      }
+
       const communityNote = await storage.addCommunityNote({
         claimId,
         userId: user_id,
@@ -394,6 +403,45 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error adding community note:", error);
       res.status(500).json({ error: "Failed to add note" });
+    }
+  });
+
+  // Submit a vote on a claim
+  app.post("/api/claims/:claimId/vote", async (req: Request, res: Response) => {
+    try {
+      const { claimId } = req.params;
+      
+      const voteSchema = z.object({
+        user_id: z.string().min(1),
+        vote: z.union([z.literal(1), z.literal(-1)]),
+        rationale: z.string().min(1).max(500),
+      });
+
+      const parsed = voteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Validation failed", 
+          details: parsed.error.errors 
+        });
+      }
+
+      const { user_id, vote, rationale } = parsed.data;
+
+      const result = await storage.addVote(claimId, user_id, vote, rationale);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ 
+        success: true, 
+        claim_id: claimId,
+        confidence: result.claim?.confidence,
+        status: result.claim?.status,
+      });
+    } catch (error) {
+      console.error("Error submitting vote:", error);
+      res.status(500).json({ error: "Failed to submit vote" });
     }
   });
 
