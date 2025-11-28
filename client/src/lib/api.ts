@@ -94,12 +94,18 @@ let storedDemoPrompt = "";
 
 export async function createPrompt(prompt: string): Promise<PromptResponse> {
   try {
+    // Include user_id if logged in for proper claim storage
+    const loggedInUser = getLoggedInUser();
+    
     const response = await fetch(`${API_BASE}/api/prompts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ 
+        prompt,
+        user_id: loggedInUser?.user_id,
+      }),
     });
 
     if (!response.ok) {

@@ -79,33 +79,60 @@ export async function registerRoutes(
   // Create a new claim (proxy to FastAPI and store in DB)
   app.post("/api/prompts", async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user?.claims?.sub;
+      // Support both Replit Auth and password-based login
+      const userId = (req as any).user?.claims?.sub || req.body.user_id;
       
-      const response = await fetch(`${FASTAPI_BASE}/prompts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(req.body),
-      });
+      let data: any = null;
+      
+      // Try to call FastAPI
+      try {
+        const response = await fetch(`${FASTAPI_BASE}/prompts`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(req.body),
+        });
 
-      if (!response.ok) {
-        throw new Error(`FastAPI responded with status ${response.status}`);
+        if (response.ok) {
+          data = await response.json();
+        }
+      } catch (fastApiError) {
+        console.log("FastAPI unavailable, using local-only mode:", fastApiError);
       }
-
-      const data = await response.json();
       
       // Store claim in database if user is authenticated
       if (userId) {
-        await storage.createClaim({
+        const claim = await storage.createClaim({
           userId,
           prompt: req.body.prompt,
-          runId: data.run_id,
-          status: data.status,
+          runId: data?.run_id || null,
+          status: data?.status || "queued",
+          provisionalAnswer: data?.provisional_answer || null,
+          confidence: data?.confidence || null,
+          votes: data?.votes || [],
+          evidence: data?.evidence || [],
         });
+        
+        // Return combined response
+        res.json({
+          claim_id: claim.id,
+          run_id: data?.run_id || `local_${claim.id}`,
+          status: data?.status || "queued",
+          provisional_answer: data?.provisional_answer,
+          confidence: data?.confidence,
+          votes: data?.votes || [],
+          evidence: data?.evidence || [],
+        });
+        return;
       }
       
-      res.json(data);
+      // If no user, just return FastAPI response or error
+      if (data) {
+        res.json(data);
+      } else {
+        res.status(503).json({ error: "Backend unavailable" });
+      }
     } catch (error) {
       console.error("Error proxying to /prompts:", error);
       res.status(503).json({ error: "Backend unavailable" });
