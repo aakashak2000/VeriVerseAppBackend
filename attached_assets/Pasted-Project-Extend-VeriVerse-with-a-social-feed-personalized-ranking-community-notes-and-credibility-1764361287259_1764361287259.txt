@@ -1,0 +1,49 @@
+Project: Extend VeriVerse with a social feed, personalized ranking, community notes, and credibility scoring.
+Stack: Keep using React + Vite + Tailwind CSS on the frontend, and FastAPI + MongoDB on the backend.
+Guidelines: Minimal colours (light background, dark text, single accent blue), responsive layout, REST only (no websockets).
+1. Community Feed (/feed)
+Backend:
+Add a POST /claims endpoint: accepts a claim text plus the posting user’s user_id, stores it in MongoDB with created_at and returns a claim_id.
+Add a GET /claims endpoint: accepts optional user_id, location, and topics[] query params and returns a list of claims sorted by relevancy score for the requesting user. Each claim object should include: claim text, claim_id, posting user info, AI provisional answer, confidence, votes array with user details, community notes (see below), and an overall credibility score.
+Relevancy score formula (MVP): for each vote on a claim, compute vote_relevancy = voter.weight × topic_match, where voter.weight is their precision history (0–1) and topic_match is 1 if the voter’s expertise matches the claim category or 0.5 otherwise. Sum these scores; higher total = higher relevancy. Later you can refine with location distance, recency and engagement metrics.
+Frontend:
+New /feed page that lists cards for each claim returned by GET /claims.
+Each card shows:
+The claim text (clickable → opens /ask?run_id=...)
+A tiny avatar + name of the posting user
+AI provisional answer summary + confidence bar
+Small credibility score badge (e.g. “84% credible”) computed from AI confidence + weighted votes
+Row of voter avatars with up/down icons sized by their weight (use the enriched vote data you already have).
+An “i” icon that shows the community note on hover or click (see section 2).
+Sort the feed by descending relevancy. Provide a dropdown or tabs to filter by location or category if desired.
+2. Community Notes & Summary
+Backend:
+Add a POST /claims/{claim_id}/notes: accepts user_id and a short note; stores it with the claim.
+Expose community_notes in the GET /claims response.
+When a claim is completed (AI + votes), call your open‑source LLM via the existing RAG pipeline to generate a highlight/summary of the claim. Pass in the top voter attributes (expertise, location, precisions) and any community notes. Store this summary with the claim and return it in the feed.
+Frontend:
+On each claim card, next to the voters row, display an “i” icon. When clicked, open a small popover showing:
+Community note(s) with author names
+The system‑generated highlight/summary (“In summary, 8 of 10 high‑precision tech reviewers agree…”).
+Provide a “Add Note” link beneath the card; if clicked, show a small textarea modal; submit via POST /claims/{claim_id}/notes with the logged-in user’s user_id.
+3. Personal Relevancy and Precision Updates
+Backend:
+Extend the user model: store a topic_precision dictionary (e.g. { "technology": 0.92, "agriculture": 0.45 }) that updates every time the user votes. You already track overall precision; this dictionary lets you compute per‑topic weights.
+When a user votes on a claim, update both the overall precision and the appropriate topic precision.
+When serving /claims to a user, compute relevancy per claim using their topic_precision (if present) and default weights for new topics.
+Frontend:
+Expose relevancy and credibility bars visually in the feed; make clear they come from user history and AI confidence.
+Allow a user to switch between “Most Relevant” (default) and “Latest” sorting.
+4. Navigation & UI Updates
+Add a “Feed” link in the top nav after login.
+Update “Community” to go to the leaderboard (as before) but clarify it’s about top reviewers.
+Keep the “Ask”, “History” and “Sign Up / Profile” links.
+5. API Hooks in api.ts
+Add functions:
+createClaim(userId: string, text: string): Promise<{ claim_id: string }> → POST /claims.
+fetchClaims(params: { userId: string; location?: string; topics?: string[] }): Promise<Claim[]> → GET /claims.
+addCommunityNote(claimId: string, userId: string, note: string): Promise<any> → POST /claims/{claim_id}/notes.
+Reuse existing run functions for the AI results.
+6. Backend integration note
+You do not need websockets; just poll REST endpoints.
+For the highlight summary call, use the existing RAG pipeline in Mumbai_Hacks (the orchestrator service). You will need to import its Reasoning Orchestrator logic into your API, or simply call the orchestrator via HTTP if it exposes an endpoint.

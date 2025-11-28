@@ -1,0 +1,142 @@
+Project: Extend VeriVerse with a social community feed, personalized relevancy scoring, community notes, and realistic demo data.
+Stack: Use the existing project structure from this repo (client + server + shared). Keep REST APIs only (no websockets).
+Style: Minimal, clean, light background, dark text, single accent blue (#2563EB).
+1. Community Feed (/feed)
+Backend:
+Add POST /claims: create a new claim (post) given user_id and text. Store fields like: claim_id, user_id, text, topics (array of tags, e.g. ["technology"]), location (if any), created_at, and link to the corresponding run if it exists.
+Add GET /claims: return a list of claim objects for a given user_id (optional for anonymous). Each claim object should include:
+claim_id
+text
+created_at
+author info (user’s name, location, expertise)
+ai_summary and confidence (if the AI run exists)
+credibility_score (computed; see section 3)
+community_notes (see section 2)
+votes (array including voter details)
+relevancy_score (for sorting)
+For now, implement the feed sorting as:
+Default: sort by relevancy_score desc.
+Accept a query parameter sort=latest to sort by created_at desc.
+Frontend:
+Create a /feed page that renders a vertical “social feed” of claim cards.
+Each card should show:
+Claim text (truncate long ones, with “See more”).
+Author name + location.
+A small badge “AI Confidence: XX%”.
+A small badge “Credibility: YY%”.
+A row of voter “chips” (avatars with name or initials and 👍/👎).
+An “i” icon that reveals the community note + AI highlight in a small popover.
+Provide a simple toggle at the top: “Most Relevant” vs “Latest”.
+Add “Feed” to the top nav so users can reach /feed.
+2. Community Notes & AI Highlight
+Backend:
+Add POST /claims/{claim_id}/notes: accepts { user_id, note }, appends a short community note to the claim.
+Extend the claim schema to store community_notes: [{ user_id, note, created_at }].
+When a claim is “completed” by the AI + votes pipeline, generate an AI highlight summary which combines:
+The original claim text
+Top relevant voters’ attributes (expertise, location, precision)
+Any existing community notes
+Use the existing LLM / RAG pipeline (Gemini or the open-source model used in the Mumbai_Hacks backend) to generate a short 1–2 sentence highlight. Store this on the claim as ai_summary.
+Ensure GET /claims returns ai_summary and community_notes.
+Frontend:
+On each claim card, show an “ℹ” circular icon.
+Clicking it should open a small panel or popover that shows:
+The AI highlight summary (ai_summary).
+A list of community notes (note + author name).
+Add a small “Add Note” link on each card:
+Clicking it opens a textarea + “Submit note” button.
+POST to /claims/{claim_id}/notes and refresh that claim’s data.
+3. Relevancy & Credibility Scoring
+Backend:
+Extend the user schema to store:
+precision (overall correct-vote ratio, 0–1)
+topic_precision: { [topic: string]: number } (e.g. { "technology": 0.9, "sports": 0.7 })
+For each vote, store:
+user_id
+vote (1 or -1)
+weight (derived from user’s precision and topic match)
+topic (assigned from claim’s topics)
+Define a simple relevancy function for a given viewer and claim:
+For each vote on that claim, compute:
+topic_match = 1.0 if voter’s expertise includes the claim topic, else 0.5.
+vote_relevancy = voter.precision * topic_match.
+Sum all vote_relevancy across voters (cap at some max if needed) and store that as relevancy_score.
+Credibility score for a claim:
+Combine AI confidence and weighted votes:
+credibility = 0.6 * ai_confidence + 0.4 * (weighted_vote_score)
+Where weighted_vote_score is in [0,1], derived from the consensus worker (you can reuse the existing confidence logic for this).
+Return credibility as a percentage (0–100%) on each claim.
+Frontend:
+Show Credibility: XX% on each claim card using a small bar or badge.
+Show a short text “Based on AI + N expert votes”.
+4. Personalization Logic
+Backend:
+When a user votes and the system later knows whether that vote was “correct” (aligned with final verdict), update:
+user.precision (overall)
+user.topic_precision[topic]
+For new users or unseen topics, use a neutral default (e.g. 0.5).
+For the feed, if a user_id is provided in the query, compute relevancy scores relative to that user (so “Most Relevant” changes per user).
+Frontend:
+When fetching /claims, include the current user_id (if logged in) to get personalized ordering.
+The user’s own posts and topics they often engage with should naturally rise in “Most Relevant”.
+5. Community Feed UX
+Use the existing layout and nav, add a “Feed” route/page.
+Cards should feel social but simple:
+Clean typography, light box with a thin border, no heavy shadows.
+One accent color for buttons and badges.
+Users can:
+Click into a claim to view the full verification detail (reuse the Ask/Result view via /ask?run_id=... or /claim/{claim_id}).
+Add community notes.
+See why a claim is credible or not at a glance.
+6. API Client Updates (client/src/lib/api.ts)
+Add:
+createClaim(userId: string, text: string, topics?: string[]): Promise<{ claim_id: string }>
+fetchClaims(params: { userId?: string; sort?: "relevant" | "latest" }): Promise<Claim[]>
+addCommunityNote(claimId: string, userId: string, note: string): Promise<void>
+Define a Claim type that matches the new API response (with author, ai_summary, credibility, relevancy_score, votes, community_notes).
+7. Seed Demo Data (VERY IMPORTANT FOR HACKATHON DEMO)
+Add a small seed function or script that runs once on backend startup (or when a SEED_DEMO env flag is true) to populate:
+Predefined users:
+Aakash Kumar
+Email: aakashak2000@gmail.com
+Location: Mumbai
+Expertise: ["Technology", "Sports"]
+Demo stats: precision ≈ 0.90, topic_precision: {"Technology": 0.95, "Sports": 0.88}, attempts: 40, points: 1300, high tier.
+Aneesha Manke
+Email: aneeshamanke@gmail.com
+Location: Nagpur
+Expertise: ["Business", "Product", "AI", "Finance"]
+Demo stats: precision ≈ 0.93, topic_precision: {"AI": 0.96, "Finance": 0.92, "Business": 0.90}, attempts: 50, points: 1500, Diamond tier.
+Shaurya Negi
+Email: shauryanegi17@gmail.com
+Location: Dehradhun
+Expertise: ["Finance", "Geography", "Tech"]
+Demo stats: precision ≈ 0.82, topic_precision: {"Finance": 0.88, "Geography": 0.80, "Tech": 0.78}, attempts: 30, points: 1000, Platinum/Gold tier.
+Parth Joshi
+Email: parth010872@gmail.com
+Location: Gujarat
+Expertise: ["Technology", "Food", "India"]
+Demo stats: precision ≈ 0.78, topic_precision: {"Technology": 0.82, "Food": 0.76, "India": 0.80}, attempts: 25, points: 850, Gold tier.
+Dummy historical votes & stats:
+Create some past runs and votes where:
+Aakash often votes correctly on tech/sports claims (high precision).
+Aneesha is very accurate on AI/Finance/Business claims.
+Shaurya is strong on Finance and Geography, moderate on Tech.
+Parth is strong on India/Tech/Food.
+Use these to pre-compute their precision and topic_precision fields so the feed and leaderboard feel real.
+Dummy community posts (claims):
+Seed several claims where the topics align with the experts above, for example:
+Tech: “Apple is building a new AI data center in Mumbai.” (Aakash, Parth relevant)
+Sports: “BCCI is planning a new T20 league in the USA.” (Aakash relevant)
+AI/Finance: “RBI is piloting an AI-based credit scoring system for rural loans.” (Aneesha, Shaurya relevant)
+Product/Business: “OpenAI is launching an India-focused enterprise plan.” (Aneesha relevant)
+Geography/India: “A new expressway between Delhi and Dehradun will cut travel time by 2 hours.” (Shaurya, Parth relevant)
+Food/India: “Mumbai’s street food vendors will need new hygiene certification by 2026.” (Parth relevant)
+Also add a few claims with topics like “Gardening in Brazil” or “Scandinavian fishing policy” that intentionally have no matching expertise among the four users to showcase low relevancy/credibility behaviour.
+For some seeded posts, generate demo community_notes and an ai_summary string so the UI looks complete even if the real AI workers aren’t running.
+Make sure the seed code is idempotent (don’t duplicate records if it runs multiple times).
+8. Keep Everything Minimal and Restful
+No websockets; all data flows via REST endpoints + polling where necessary.
+Keep the design simple: maximum of 2–3 neutrals + 1 accent colour.
+Reuse your existing layout and nav; just add the new /feed route and links.
+Ensure all new endpoints integrate cleanly with the existing storage layer (the shared storage module or Mongo, depending on what’s currently used).

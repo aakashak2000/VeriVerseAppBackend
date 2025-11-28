@@ -23,28 +23,43 @@ export const users = pgTable("users", {
   displayName: varchar("display_name"),
   location: varchar("location"),
   expertiseTags: text("expertise_tags").array(),
+  topicPrecision: jsonb("topic_precision").default({}),
   profileImageUrl: varchar("profile_image_url"),
   points: integer("points").default(0),
-  precision: real("precision").default(0),
+  precision: real("precision").default(0.5),
   attempts: integer("attempts").default(0),
   tier: varchar("tier").default("Bronze"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Claims table - stores user verification history
+// Claims table - stores user verification history and community posts
 export const claims = pgTable("claims", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
   prompt: text("prompt").notNull(),
+  topics: text("topics").array().default([]),
+  location: varchar("location"),
   runId: varchar("run_id"),
   status: varchar("status").default("queued"),
   provisionalAnswer: text("provisional_answer"),
+  aiSummary: text("ai_summary"),
   confidence: real("confidence").default(0),
+  credibilityScore: real("credibility_score").default(0),
+  relevancyScore: real("relevancy_score").default(0),
   evidence: jsonb("evidence").default([]),
   votes: jsonb("votes").default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Community notes table - user-submitted notes on claims
+export const communityNotes = pgTable("community_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  claimId: varchar("claim_id").references(() => claims.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  note: text("note").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -72,8 +87,19 @@ export type SignupUser = z.infer<typeof signupUserSchema>;
 export const insertClaimSchema = createInsertSchema(claims).pick({
   userId: true,
   prompt: true,
+  topics: true,
+  location: true,
   runId: true,
 });
+
+export const insertCommunityNoteSchema = createInsertSchema(communityNotes).pick({
+  claimId: true,
+  userId: true,
+  note: true,
+});
+
+export type CommunityNote = typeof communityNotes.$inferSelect;
+export type InsertCommunityNote = z.infer<typeof insertCommunityNoteSchema>;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -159,4 +185,55 @@ export type Reward = {
   userId: string;
   perkId: string;
   redeemedAt: Date;
+};
+
+// Community Note with author info for display
+export type CommunityNoteWithAuthor = {
+  id: string;
+  note: string;
+  created_at: string;
+  author: {
+    id: string;
+    name: string;
+    location?: string;
+  };
+};
+
+// Feed claim type with all enriched data for the community feed
+export type FeedClaim = {
+  id: string;
+  text: string;
+  topics: string[];
+  location?: string;
+  created_at: string;
+  run_id?: string;
+  status: string;
+  author: {
+    id: string;
+    name: string;
+    location?: string;
+    expertise: string[];
+    profile_image_url?: string;
+  };
+  ai_summary?: string;
+  provisional_answer?: string;
+  confidence: number;
+  credibility_score: number;
+  relevancy_score: number;
+  votes: Vote[];
+  community_notes: CommunityNoteWithAuthor[];
+};
+
+// Create claim request type
+export type CreateClaimRequest = {
+  user_id: string;
+  text: string;
+  topics?: string[];
+  location?: string;
+};
+
+// Add note request type
+export type AddNoteRequest = {
+  user_id: string;
+  note: string;
 };
