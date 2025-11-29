@@ -31,6 +31,8 @@ export const users = pgTable("users", {
   precision: real("precision").default(0.5),
   attempts: integer("attempts").default(0),
   tier: varchar("tier").default("Bronze"),
+  correctVotes: integer("correct_votes").default(0),
+  incorrectVotes: integer("incorrect_votes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -53,6 +55,9 @@ export const claims = pgTable("claims", {
   evidence: jsonb("evidence").default([]),
   votes: jsonb("votes").default([]),
   groundTruth: integer("ground_truth"),
+  resolvedBy: varchar("resolved_by"),
+  resolvedAt: timestamp("resolved_at"),
+  verificationSources: jsonb("verification_sources").default([]),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -269,6 +274,9 @@ export type FeedClaim = {
   votes: Vote[];
   evidence?: Evidence[];
   ground_truth?: number | null;
+  resolved_by?: string | null;
+  resolved_at?: string | null;
+  verification_sources?: string[];
 };
 
 // Create claim request type

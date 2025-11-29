@@ -1,0 +1,211 @@
+Implement automated moderator resolution system with point distribution:
+
+CONTEXT:
+The platform now includes an automated moderator agent (running in FastAPI) that periodically checks pending claims against credible sources. When the agent finds sufficient evidence from trusted domains, it assigns a final verdict (TRUE/FALSE/MIXED) and triggers point distribution to users who voted correctly.
+
+PART 1: DATABASE SCHEMA CHANGES
+
+Update shared/schema.ts to add resolution tracking fields:
+
+export const claims = pgTable("claims", {
+  // ... existing fields (id, userId, prompt, runId, status, etc.) ...
+  
+  // New fields for moderator resolution:
+  groundTruth: integer("ground_truth"),        // 1 = TRUE, -1 = FALSE, 0 = MIXED, null = pending/unresolved
+  resolvedBy: varchar("resolved_by"),          // "moderator_agent" or moderator user ID
+  resolvedAt: timestamp("resolved_at"),        // When verdict was assigned
+  verificationSources: jsonb("verification_sources").default([])  // URLs used for verification
+});
+
+Update users table for scoring:
+export const users = pgTable("users", {
+  // ... existing fields ...
+  correctVotes: integer("correct_votes").default(0),    // Count of votes matching ground truth
+  incorrectVotes: integer("incorrect_votes").default(0) // Count of wrong votes
+});
+
+After schema changes, run: npm run db:push
+
+
+PART 2: POINT DISTRIBUTION API
+
+The FastAPI moderator agent will call VeriVerse to award points after resolution.
+
+Add to server/routes.ts:
+
+app.post("/api/users/:userId/award-points", async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { points, claimId, wasCorrect } = req.body;
+    
+    // Validate request
+    if (!userId || points === undefined) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+    
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Update user stats
+    const newCorrect = user.correctVotes + (wasCorrect ? 1 : 0);
+    const newIncorrect = user.incorrectVotes + (wasCorrect ? 0 : 1);
+    const totalAttempts = newCorrect + newIncorrect;
+    const newPrecision = totalAttempts > 0 ? newCorrect / totalAttempts : 0.5;
+    
+    await storage.updateUser(userId, {
+      points: user.points + points,
+      correctVotes: newCorrect,
+      incorrectVotes: newIncorrect,
+      precision: newPrecision,
+      attempts: totalAttempts
+    });
+    
+    console.log(`Awarded ${points} points to ${userId} for claim ${claimId}`);
+    res.json({ success: true, newPoints: user.points + points });
+    
+  } catch (error) {
+    console.error("Error awarding points:", error);
+    res.status(500).json({ error: "Failed to award points" });
+  }
+});
+
+
+PART 3: FRONTEND DISPLAY - MODERATOR VERDICT BADGES
+
+Update FeedPage.tsx and ClaimDetailPage.tsx to show resolution status.
+
+In each claim card/detail view, add after the AI confidence display:
+
+{/* Moderator Verdict Badge */}
+<div className="mt-3">
+  {claim.groundTruth === null ? (
+    <Badge variant="outline" className="gap-1.5 border-yellow-600 text-yellow-700">
+      <Clock className="h-3 w-3" />
+      Awaiting Moderator Verdict
+    </Badge>
+  ) : (
+    <Badge variant="default" className="gap-1.5 bg-green-600 hover:bg-green-700">
+      <CheckCircle className="h-3 w-3" />
+      Moderator Verified: {
+        claim.groundTruth === 1 ? "TRUE" : 
+        claim.groundTruth === -1 ? "FALSE" : 
+        "MIXED EVIDENCE"
+      }
+    </Badge>
+  )}
+  
+  {/* Show verification timestamp if resolved */}
+  {claim.resolvedAt && (
+    <p className="text-xs text-muted-foreground mt-1">
+      Verified {formatDistanceToNow(new Date(claim.resolvedAt))} ago
+    </p>
+  )}
+</div>
+
+Import: import { Clock, CheckCircle } from "lucide-react"
+Import: import { formatDistanceToNow } from "date-fns"
+
+
+PART 4: DISABLE VOTING AFTER RESOLUTION
+
+Once a claim is resolved, users should not be able to vote anymore (it's locked).
+
+In ClaimDetailPage.tsx, update vote button logic:
+
+const loggedInUser = getLoggedInUser();
+const isAuthor = loggedInUser?.user_id === claim.author.id;
+const isResolved = claim.groundTruth !== null && claim.groundTruth !== undefined;
+const hasVoted = claim.votes?.some(v => v.user_id === loggedInUser?.user_id);
+
+// User can vote if: logged in, not the author, claim not resolved, hasn't voted yet
+const canVote = loggedInUser && !isAuthor && !isResolved && !hasVoted;
+
+{canVote ? (
+  <div className="space-y-4">
+    <h3 className="font-semibold">Cast Your Vote</h3>
+    <VoteButtons claimId={claim.id} onVoteSubmitted={refreshClaim} />
+  </div>
+) : (
+  <div className="p-4 bg-muted/50 rounded-lg">
+    <p className="text-sm text-muted-foreground">
+      {isResolved 
+        ? "⚠️ Voting closed - This claim has been verified by the moderator"
+        : isAuthor 
+        ? "You cannot vote on your own claim"
+        : hasVoted
+        ? "You have already voted on this claim"
+        : "Please log in to vote"}
+    </p>
+  </div>
+)}
+
+
+PART 5: SHOW USER POINTS AWARDED
+
+When viewing resolved claims where the user voted, show if they gained/lost points.
+
+In the votes section of ClaimDetailPage.tsx:
+
+{claim.votes?.map((vote) => (
+  <div key={vote.user_id} className="border rounded-lg p-3">
+    {/* Existing vote display */}
+    
+    {/* Show point outcome if claim is resolved and this is the logged-in user */}
+    {claim.groundTruth !== null && vote.user_id === loggedInUser?.user_id && (
+      <div className={`mt-2 text-sm font-medium ${
+        vote.vote === claim.groundTruth ? "text-green-600" : "text-red-600"
+      }`}>
+        {vote.vote === claim.groundTruth ? (
+          <>✓ Correct! You earned +50 points</>
+        ) : (
+          <>✗ Incorrect - Precision updated</>
+        )}
+      </div>
+    )}
+  </div>
+))}
+
+
+PART 6: UPDATE API TYPES
+
+In client/src/lib/api.ts, update claim types:
+
+export type FeedClaim = {
+  // ... existing fields ...
+  groundTruth?: number | null;        // 1, -1, 0, or null
+  resolvedBy?: string | null;
+  resolvedAt?: string | null;
+  verificationSources?: string[];
+};
+
+
+PART 7: STORAGE LAYER UPDATES
+
+Add to server/storage.ts IStorage interface:
+
+async updateUser(userId: string, updates: Partial<User>): Promise<User>;
+
+Implement in DatabaseStorage:
+
+async updateUser(userId: string, updates: Partial<User>): Promise<User | undefined> {
+  const [user] = await db
+    .update(users)
+    .set({ ...updates, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .returning();
+  return user;
+}
+
+
+TESTING FLOW:
+1. User posts claim → shows "Awaiting Moderator Verdict" badge
+2. After 1 hour, FastAPI moderator runs and finds verdict from credible sources
+3. FastAPI calls POST /api/users/{userId}/award-points for each voter
+4. Frontend refreshes → shows "Moderator Verified: TRUE" badge
+5. Voters see their point gain/loss next to their vote
+6. Vote buttons disappear (claim locked)
+7. Leaderboard updates with new precision/points
+
+The system is fully automated - no manual moderation needed for most claims.

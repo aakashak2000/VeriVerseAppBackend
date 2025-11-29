@@ -18,7 +18,8 @@ import {
   AlertCircle,
   SlidersHorizontal,
   User,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
