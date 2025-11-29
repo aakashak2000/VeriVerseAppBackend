@@ -448,6 +448,8 @@ export class DatabaseStorage implements IStorage {
       },
     ];
 
+    const userIdMap: Record<string, string> = {};
+    
     for (const user of demoUsers) {
       try {
         const passwordHash = await bcrypt.hash(user.password, 10);
@@ -469,7 +471,8 @@ export class DatabaseStorage implements IStorage {
               updatedAt: new Date()
             })
             .where(eq(users.email, user.email));
-          console.log(`Updated user ${user.loginId} with login credentials`);
+          userIdMap[user.id] = existingByEmail[0].id;
+          console.log(`Updated user ${user.loginId} with login credentials (ID: ${existingByEmail[0].id})`);
         } else {
           await db.insert(users).values({
             id: user.id,
@@ -485,6 +488,7 @@ export class DatabaseStorage implements IStorage {
             points: user.points,
             tier: user.tier,
           }).onConflictDoNothing();
+          userIdMap[user.id] = user.id;
           console.log(`Created user ${user.loginId}`);
         }
       } catch (e) {
@@ -492,159 +496,184 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    const existingClaims = await db.select().from(claims).limit(1);
-    if (existingClaims.length > 0) {
-      console.log("Claims already seeded, skipping claims...");
-      return;
-    }
+    const aakashId = userIdMap["demo_aakash"] || "demo_aakash";
+    const aneeshaId = userIdMap["demo_aneesha"] || "demo_aneesha";
+    const shauryaId = userIdMap["demo_shaurya"] || "demo_shaurya";
+    const parthId = userIdMap["demo_parth"] || "demo_parth";
 
-    const existingUserByEmail = await db.select().from(users).where(eq(users.email, "aakashak2000@gmail.com")).limit(1);
-    const aakashUserId = existingUserByEmail.length > 0 ? existingUserByEmail[0].id : "demo_aakash";
+    await db.delete(claims);
+    console.log("Cleared existing claims for fresh demo data...");
+
+    const now = new Date();
+    const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
     const demoClaims = [
       {
-        id: "claim_tech_apple",
-        userId: aakashUserId,
-        prompt: "Apple is building a new AI data center in Mumbai.",
-        topics: ["Technology", "AI", "India"],
-        location: "Mumbai",
-        status: "completed",
-        aiSummary: "Verified by tech experts. Multiple sources confirm Apple's expansion plans in India with a focus on AI infrastructure.",
-        provisionalAnswer: "This claim appears to be accurate. Apple has announced plans for significant infrastructure investment in India.",
-        thinking: "First, I searched for recent news about Apple's infrastructure investments in India. Found multiple credible sources including Economic Times and TechCrunch reporting on Apple's expansion plans. Then I cross-referenced with Apple's official announcements and found consistency with their stated commitment to Indian manufacturing and services. The Mumbai location aligns with Apple's existing presence in the region.",
-        confidence: 0.87,
-        credibilityScore: 0.89,
-        relevancyScore: 0.92,
-        groundTruth: 1,
-        votes: [
-          { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy. Multiple tech sources confirm this.", match_reasons: ["domain_expert"] },
-          { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "AI", location: "Nagpur", vote: 1, weight: 0.96, rationale: "Verified through industry contacts and tech publications.", match_reasons: ["domain_expert", "topic_specialist"] },
-        ],
-      },
-      {
-        id: "claim_sports_bcci",
-        userId: aakashUserId,
-        prompt: "BCCI is planning a new T20 league in the USA.",
-        topics: ["Sports", "Business"],
-        location: "USA",
-        status: "completed",
-        aiSummary: "Sports industry experts confirm BCCI's expansion plans. The league aims to tap into the growing cricket market in North America.",
-        provisionalAnswer: "This claim is likely accurate based on recent BCCI announcements and cricket's growing popularity in the USA.",
-        thinking: "I analyzed recent BCCI press releases and sports news. The Major League Cricket (MLC) has been announced and is gaining traction. Multiple sources including ESPN Cricinfo confirm BCCI's involvement in US cricket expansion. The claim aligns with documented efforts to grow cricket in North America.",
-        confidence: 0.82,
-        credibilityScore: 0.85,
-        relevancyScore: 0.78,
-        groundTruth: 1,
-        votes: [
-          { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Sports", location: "Dehradun", vote: 1, weight: 0.85, rationale: "Confirmed by multiple sports news outlets and BCCI statements.", match_reasons: ["domain_knowledge"] },
-        ],
-      },
-      {
-        id: "claim_finance_rbi",
-        userId: "demo_aneesha",
-        prompt: "RBI is piloting an AI-based credit scoring system for rural loans.",
-        topics: ["Finance", "AI", "India"],
+        id: "demo_claim_1",
+        userId: aakashId,
+        prompt: "Apple announced new manufacturing expansion in India for 2025",
+        topics: ["Technology", "Business"],
         location: "India",
-        status: "completed",
-        aiSummary: "Finance and AI experts validate this initiative. The RBI has been actively exploring fintech solutions for financial inclusion.",
-        provisionalAnswer: "This claim is verified. RBI has announced pilot programs for AI-based credit scoring to improve rural lending.",
-        thinking: "Searched RBI's official publications and found references to fintech initiatives for financial inclusion. Cross-referenced with banking industry reports and found multiple programs using alternative credit scoring. The claim is consistent with RBI's stated goals for rural banking access.",
-        confidence: 0.91,
-        credibilityScore: 0.93,
-        relevancyScore: 0.95,
+        status: "verified",
+        aiSummary: "VERIFIED: Apple has officially announced significant manufacturing expansion in India. Multiple sources confirm the investment in new facilities and workforce expansion for 2025.",
+        provisionalAnswer: "This claim is TRUE. Apple has confirmed plans to expand manufacturing operations in India as part of their supply chain diversification strategy.",
+        thinking: "Step 1: Used web_search to find recent Apple India announcements.\nStep 2: Found Reuters and Economic Times articles confirming Apple's $2 billion investment in new manufacturing facilities.\nStep 3: Cross-referenced with Apple's official press releases.\nStep 4: Verified through Wikipedia that Apple has been expanding India operations since 2017.\nConclusion: The claim is accurate based on multiple credible sources.",
+        confidence: 0.95,
+        credibilityScore: 0.95,
+        relevancyScore: 0.90,
         groundTruth: 1,
+        resolvedBy: "system_moderator",
+        resolvedAt: daysAgo(5),
+        verificationSources: ["https://reuters.com/technology/apple-india-expansion", "https://economictimes.com/apple-manufacturing-2025", "https://apple.com/newsroom/india"],
         votes: [
-          { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends. RBI has been publishing research on this.", match_reasons: ["domain_expert"] },
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.90, rationale: "Verified through fintech industry sources.", match_reasons: ["tech_expert"] },
+          { user_id: aneeshaId, name: "Aneesha Manke", domain: "Business", location: "Nagpur", vote: 1, weight: 0.93, rationale: "Confirmed through multiple business news sources. Apple's India expansion is well-documented.", match_reasons: ["domain_expert"] },
+          { user_id: shauryaId, name: "Shaurya Negi", domain: "Tech", location: "Dehradun", vote: 1, weight: 0.82, rationale: "Tech industry reports confirm this expansion plan.", match_reasons: ["tech_knowledge"] },
+          { user_id: parthId, name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.78, rationale: "Verified via Apple investor relations documents.", match_reasons: ["domain_expert"] },
         ],
       },
       {
-        id: "claim_business_openai",
-        userId: "demo_aneesha",
-        prompt: "OpenAI is launching an India-focused enterprise plan.",
-        topics: ["Business", "AI", "Technology"],
+        id: "demo_claim_2",
+        userId: aneeshaId,
+        prompt: "RBI increased repo rate by 25 basis points in November 2025",
+        topics: ["Finance", "Economy"],
         location: "India",
-        status: "completed",
-        aiSummary: "Business and AI experts confirm OpenAI's expansion into the Indian enterprise market with localized solutions.",
-        provisionalAnswer: "This claim is accurate. OpenAI has announced plans for an enterprise offering tailored to Indian businesses.",
-        thinking: "Analyzed OpenAI's recent announcements and partnership news. Found evidence of Microsoft Azure partnership expanding to India. Also found reports of enterprise pricing and features being made available in the Indian market. The claim is consistent with OpenAI's global expansion strategy.",
-        confidence: 0.88,
-        credibilityScore: 0.90,
+        status: "verified",
+        aiSummary: "VERIFIED: The Reserve Bank of India's Monetary Policy Committee announced a 25 basis point increase in the repo rate during their November 2025 meeting.",
+        provisionalAnswer: "This claim is TRUE. RBI's MPC raised the repo rate by 25 bps to combat inflation pressures.",
+        thinking: "Step 1: Searched RBI official website for MPC meeting minutes.\nStep 2: Found November 2025 policy statement confirming rate hike.\nStep 3: Verified through financial news sources including Bloomberg and Mint.\nStep 4: Cross-checked with banking sector analysts' reports.\nConclusion: The 25 basis point increase is officially confirmed.",
+        confidence: 0.92,
+        credibilityScore: 0.94,
         relevancyScore: 0.88,
         groundTruth: 1,
+        resolvedBy: "system_moderator",
+        resolvedAt: daysAgo(3),
+        verificationSources: ["https://rbi.org.in/monetary-policy", "https://bloomberg.com/rbi-rate-hike", "https://livemint.com/economy/rbi-november-2025"],
         votes: [
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified via OpenAI announcements and tech industry sources.", match_reasons: ["domain_expert"] },
-          { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with OpenAI's expansion strategy.", match_reasons: ["domain_expert"] },
+          { user_id: shauryaId, name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "RBI's official statement confirms this. Standard monetary policy adjustment.", match_reasons: ["domain_expert"] },
+          { user_id: aakashId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.90, rationale: "Banking sector sources confirm the rate change.", match_reasons: ["general_knowledge"] },
+          { user_id: parthId, name: "Parth Joshi", domain: "India", location: "Gujarat", vote: 1, weight: 0.78, rationale: "Widely reported across financial media.", match_reasons: ["location_expert"] },
         ],
       },
       {
-        id: "claim_geo_expressway",
-        userId: "demo_shaurya",
-        prompt: "A new expressway between Delhi and Dehradun will cut travel time by 2 hours.",
-        topics: ["Geography", "India", "Infrastructure"],
+        id: "demo_claim_3",
+        userId: shauryaId,
+        prompt: "India won the home Test series against South Africa 2-1",
+        topics: ["Sports", "Cricket"],
         location: "India",
-        status: "completed",
-        aiSummary: "Infrastructure and geography experts validate this claim. The expressway project has been officially announced.",
-        provisionalAnswer: "This claim is verified. The Delhi-Dehradun expressway is under construction and will significantly reduce travel time.",
-        thinking: "Searched for official government infrastructure announcements. Found NHAI (National Highways Authority of India) documentation on the Delhi-Dehradun expressway project. Current travel time is approximately 6 hours, and the expressway is projected to reduce it to around 2.5-3 hours. The 2-hour reduction claim is accurate.",
-        confidence: 0.85,
-        credibilityScore: 0.87,
-        relevancyScore: 0.75,
+        status: "verified",
+        aiSummary: "VERIFIED: India defeated South Africa 2-1 in the home Test series. The victory was secured with wins in the second and third Tests after a first Test loss.",
+        provisionalAnswer: "This claim is TRUE. India's home dominance continued with a 2-1 series victory over the Proteas.",
+        thinking: "Step 1: Searched ESPN Cricinfo for India vs South Africa Test series results.\nStep 2: Found match reports confirming India won matches at Pune and Ranchi.\nStep 3: Verified final series scoreline through ICC official records.\nStep 4: Cross-referenced with Cricbuzz and Wisden for accuracy.\nConclusion: Series result is confirmed at 2-1 in India's favor.",
+        confidence: 0.88,
+        credibilityScore: 0.92,
+        relevancyScore: 0.85,
         groundTruth: 1,
+        resolvedBy: "system_moderator",
+        resolvedAt: daysAgo(7),
+        verificationSources: ["https://espncricinfo.com/series/ind-vs-sa-2025", "https://icc-cricket.com/rankings", "https://cricbuzz.com/series-results"],
         votes: [
-          { user_id: "demo_parth", name: "Parth Joshi", domain: "India", location: "Gujarat", vote: 1, weight: 0.80, rationale: "Confirmed through government sources. Project officially inaugurated.", match_reasons: ["topic_specialist"] },
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.75, rationale: "Verified through infrastructure news sources.", match_reasons: ["general_knowledge"] },
+          { user_id: aakashId, name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Watched the matches live. Clear 2-1 victory for India.", match_reasons: ["domain_expert"] },
+          { user_id: aneeshaId, name: "Aneesha Manke", domain: "Business", location: "Nagpur", vote: 1, weight: 0.85, rationale: "Sports news widely covered this series outcome.", match_reasons: ["general_knowledge"] },
+          { user_id: parthId, name: "Parth Joshi", domain: "India", location: "Gujarat", vote: 1, weight: 0.78, rationale: "Cricket results are well-documented. India won convincingly.", match_reasons: ["location_expert"] },
         ],
       },
       {
-        id: "claim_food_mumbai",
-        userId: "demo_parth",
-        prompt: "Mumbai's street food vendors will need new hygiene certification by 2026.",
-        topics: ["Food", "India", "Regulation"],
+        id: "demo_claim_4",
+        userId: parthId,
+        prompt: "Mumbai's air pollution is solely caused by volcanic ash from Ethiopia",
+        topics: ["Environment", "Science"],
         location: "Mumbai",
-        status: "completed",
-        aiSummary: "Food safety experts confirm new regulations are being implemented for street vendors in major Indian cities.",
-        provisionalAnswer: "This claim is accurate. FSSAI has announced new hygiene certification requirements for street food vendors.",
-        thinking: "Reviewed FSSAI (Food Safety and Standards Authority of India) guidelines and announcements. Found the 'Clean Street Food Hub' initiative and new certification requirements for street vendors. The 2026 timeline is partially accurate - implementation is phased across different cities. Mumbai is among the priority cities.",
-        confidence: 0.79,
-        credibilityScore: 0.81,
-        relevancyScore: 0.70,
-        groundTruth: 0,
+        status: "verified",
+        aiSummary: "FALSE: Mumbai's air pollution is caused by multiple factors including vehicle emissions, industrial activity, construction dust, and crop burning - not volcanic ash from Ethiopia.",
+        provisionalAnswer: "This claim is FALSE. Air quality experts confirm Mumbai pollution comes from local sources, not African volcanic activity.",
+        thinking: "Step 1: Searched for scientific studies on Mumbai air pollution sources.\nStep 2: Found CPCB and IIT Bombay research identifying primary pollutants.\nStep 3: Checked for any Ethiopian volcanic activity - no major eruptions recently.\nStep 4: Consulted atmospheric science resources on transoceanic pollution patterns.\nConclusion: The claim is demonstrably false. No credible evidence supports the volcanic ash theory.",
+        confidence: 0.15,
+        credibilityScore: 0.12,
+        relevancyScore: 0.75,
+        groundTruth: -1,
+        resolvedBy: "system_moderator",
+        resolvedAt: daysAgo(4),
+        verificationSources: ["https://cpcb.nic.in/air-quality-data", "https://iitb.ac.in/research/pollution", "https://who.int/air-quality"],
         votes: [
-          { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Business", location: "Nagpur", vote: 1, weight: 0.85, rationale: "FSSAI guidelines confirm new requirements.", match_reasons: ["regulatory_knowledge"] },
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "India", location: "Mumbai", vote: -1, weight: 0.80, rationale: "Timeline is unclear - implementation is phased, not a hard 2026 deadline.", match_reasons: ["location_match"] },
+          { user_id: aneeshaId, name: "Aneesha Manke", domain: "AI", location: "Nagpur", vote: -1, weight: 0.93, rationale: "No scientific evidence supports this claim. Mumbai pollution is primarily from local sources.", match_reasons: ["analytical_thinking"] },
+          { user_id: shauryaId, name: "Shaurya Negi", domain: "Geography", location: "Dehradun", vote: -1, weight: 0.80, rationale: "Geography makes this implausible. Transoceanic ash transport at this scale is not documented.", match_reasons: ["domain_expert"] },
+          { user_id: aakashId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: -1, weight: 0.90, rationale: "Living in Mumbai - pollution is clearly from vehicles and construction. This claim is absurd.", match_reasons: ["location_expert"] },
         ],
       },
       {
-        id: "claim_no_match_gardening",
-        userId: "demo_parth",
-        prompt: "Organic gardening in Brazil has increased by 40% this year.",
-        topics: ["Gardening", "Brazil", "Agriculture"],
-        location: "Brazil",
-        status: "awaiting_votes",
-        aiSummary: "Limited expert coverage for this topic. Claim requires more verification from agricultural specialists.",
-        provisionalAnswer: "This claim needs more verification. Our experts have limited coverage in Brazilian agriculture.",
-        thinking: "Searched for data on Brazilian organic agriculture but found limited authoritative sources. Some reports suggest growth in organic farming but specific percentage claims are difficult to verify. Would need specialized agricultural data sources to confirm the 40% figure.",
-        confidence: 0.45,
-        credibilityScore: 0.40,
-        relevancyScore: 0.25,
-        groundTruth: null,
-        votes: [],
+        id: "demo_claim_5",
+        userId: aneeshaId,
+        prompt: "The Great Wall of China is visible from space with the naked eye",
+        topics: ["Science", "History"],
+        location: "China",
+        status: "verified",
+        aiSummary: "FALSE: This is a popular myth. The Great Wall is too narrow to be seen from space without aid. Astronauts have confirmed it's not visible to the naked eye from orbit.",
+        provisionalAnswer: "This claim is FALSE. NASA and astronauts have debunked this myth multiple times.",
+        thinking: "Step 1: Searched NASA archives for astronaut observations.\nStep 2: Found statements from multiple astronauts including Yang Liwei and Chris Hadfield.\nStep 3: Calculated wall width (5-8 meters) vs. human visual acuity limits from orbit.\nStep 4: Reviewed Wikipedia article on Great Wall visibility myth.\nConclusion: Scientific consensus is clear - the wall is not visible from space unaided.",
+        confidence: 0.20,
+        credibilityScore: 0.15,
+        relevancyScore: 0.70,
+        groundTruth: -1,
+        resolvedBy: "system_moderator",
+        resolvedAt: daysAgo(6),
+        verificationSources: ["https://nasa.gov/great-wall-myth", "https://scientificamerican.com/space-visibility", "https://en.wikipedia.org/wiki/Great_Wall_of_China"],
+        votes: [
+          { user_id: aakashId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: -1, weight: 0.90, rationale: "This is a well-known myth debunked by NASA and astronauts.", match_reasons: ["scientific_knowledge"] },
+          { user_id: shauryaId, name: "Shaurya Negi", domain: "Geography", location: "Dehradun", vote: -1, weight: 0.80, rationale: "Geography experts know this is false. Wall is 5-8m wide, invisible from 400km altitude.", match_reasons: ["domain_expert"] },
+          { user_id: parthId, name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: -1, weight: 0.78, rationale: "Simple physics - human eye resolution can't detect such narrow structures from orbit.", match_reasons: ["analytical_thinking"] },
+        ],
       },
       {
-        id: "claim_no_match_fishing",
-        userId: "demo_shaurya",
-        prompt: "Scandinavian fishing policy will ban commercial fishing by 2030.",
-        topics: ["Fishing", "Scandinavia", "Policy"],
-        location: "Scandinavia",
-        status: "awaiting_votes",
-        aiSummary: "No matching experts found. This claim is outside our community's expertise areas.",
-        provisionalAnswer: "This claim cannot be verified. Our community lacks experts in Scandinavian fishing policy.",
-        thinking: "This claim appears to be an overstatement. While there are discussions about sustainable fishing policies in Scandinavian countries, a complete ban on commercial fishing by 2030 is not supported by any official policy documents I could find. Nordic countries have strict fishing regulations but no plans for a complete ban.",
-        confidence: 0.30,
-        credibilityScore: 0.25,
-        relevancyScore: 0.15,
-        groundTruth: -1,
+        id: "demo_claim_6",
+        userId: shauryaId,
+        prompt: "Microsoft planning to build AI research center in Bangalore",
+        topics: ["Technology", "AI"],
+        location: "Bangalore",
+        status: "pending",
+        aiSummary: "Under investigation. Some reports suggest Microsoft is expanding AI research capabilities in India, but official confirmation is pending.",
+        provisionalAnswer: "This claim requires further verification. Microsoft has existing research facilities in India but new center announcements need official confirmation.",
+        thinking: "Step 1: Searched for Microsoft India expansion announcements.\nStep 2: Found mentions in tech blogs but no official press release.\nStep 3: Microsoft Research India exists but new AI center not confirmed.\nStep 4: Industry sources suggest expansion is possible but unconfirmed.\nConclusion: Claim is plausible but awaiting official confirmation.",
+        confidence: 0.78,
+        credibilityScore: 0.65,
+        relevancyScore: 0.88,
+        groundTruth: null,
+        votes: [
+          { user_id: aakashId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.90, rationale: "Microsoft has been expanding India presence. This is consistent with their strategy.", match_reasons: ["domain_expert"] },
+          { user_id: aneeshaId, name: "Aneesha Manke", domain: "AI", location: "Nagpur", vote: 1, weight: 0.93, rationale: "Tech industry sources indicate Microsoft is investing heavily in India AI.", match_reasons: ["domain_expert"] },
+        ],
+      },
+      {
+        id: "demo_claim_7",
+        userId: aakashId,
+        prompt: "Indian cricket team to tour Australia in December 2025",
+        topics: ["Sports", "Cricket"],
+        location: "Australia",
+        status: "pending",
+        aiSummary: "Under investigation. Cricket schedule announcements typically come from BCCI and Cricket Australia. Current FTP schedule needs verification.",
+        provisionalAnswer: "This claim needs verification from official cricket board announcements.",
+        thinking: "Step 1: Searched ICC Future Tours Programme for India-Australia fixtures.\nStep 2: Found tentative schedules but specific dates not yet confirmed.\nStep 3: BCCI website doesn't show confirmed December 2025 Australia tour.\nStep 4: Sports news sites report discussions but no official announcement.\nConclusion: Plausible based on cricket calendar patterns but awaiting confirmation.",
+        confidence: 0.85,
+        credibilityScore: 0.70,
+        relevancyScore: 0.82,
+        groundTruth: null,
+        votes: [
+          { user_id: shauryaId, name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.82, rationale: "India typically tours Australia around this time. Schedule seems realistic.", match_reasons: ["general_knowledge"] },
+        ],
+      },
+      {
+        id: "demo_claim_8",
+        userId: parthId,
+        prompt: "Tesla considering India entry with local manufacturing by 2026",
+        topics: ["Technology", "Business"],
+        location: "India",
+        status: "pending",
+        aiSummary: "Under investigation. Tesla has shown interest in India before but no confirmed manufacturing plans. Import duty negotiations ongoing.",
+        provisionalAnswer: "This claim requires verification. Tesla's India entry has been discussed for years but faces regulatory hurdles.",
+        thinking: "Step 1: Searched for recent Tesla India announcements.\nStep 2: Found ongoing discussions about import duty reduction.\nStep 3: No confirmed factory or manufacturing commitment found.\nStep 4: Previous Tesla India plans have not materialized.\nConclusion: Claim is speculative. Tesla interest exists but concrete plans unconfirmed.",
+        confidence: 0.72,
+        credibilityScore: 0.55,
+        relevancyScore: 0.85,
+        groundTruth: null,
         votes: [],
       },
     ];
@@ -653,7 +682,7 @@ export class DatabaseStorage implements IStorage {
       await db.insert(claims).values(claim).onConflictDoNothing();
     }
 
-    console.log("Demo data seeded successfully!");
+    console.log("Demo data seeded successfully with 8 high-quality claims!");
   }
 }
 
