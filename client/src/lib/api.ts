@@ -365,6 +365,8 @@ export async function createUser(
       precision: 0.5,
       attempts: 0,
       tier: "Bronze",
+      correctVotes: 0,
+      incorrectVotes: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -403,6 +405,8 @@ export async function getUser(userId: string): Promise<User | null> {
         precision: 0.5,
         attempts: 0,
         tier: "Bronze",
+        correctVotes: 0,
+        incorrectVotes: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -460,6 +464,10 @@ const DEMO_FEED: FeedClaim[] = [
     confidence: 0.87,
     credibility_score: 0.89,
     relevancy_score: 0.92,
+    ground_truth: 1,
+    resolved_by: "moderator_agent",
+    resolved_at: new Date(Date.now() - 1800000).toISOString(),
+    verification_sources: ["https://economictimes.com/apple-india-expansion", "https://techcrunch.com/apple-mumbai-datacenter"],
     votes: [
       {
         user_id: "demo_aakash",
@@ -505,6 +513,10 @@ const DEMO_FEED: FeedClaim[] = [
     confidence: 0.91,
     credibility_score: 0.93,
     relevancy_score: 0.95,
+    ground_truth: 1,
+    resolved_by: "moderator_agent",
+    resolved_at: new Date(Date.now() - 3600000).toISOString(),
+    verification_sources: ["https://rbi.org.in/fintech-pilot", "https://economictimes.com/rbi-ai-credit"],
     votes: [
       {
         user_id: "demo_aneesha",

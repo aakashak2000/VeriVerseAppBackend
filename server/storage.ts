@@ -10,6 +10,7 @@ export interface IStorage {
   validateLogin(loginId: string, password: string): Promise<AuthUser | null>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUserFromSignup(data: SignupUser): Promise<User>;
+  updateUser(userId: string, updates: Partial<User>): Promise<User | undefined>;
   createClaim(claim: InsertClaim): Promise<Claim>;
   getClaim(id: string): Promise<Claim | undefined>;
   getClaimByRunId(runId: string): Promise<Claim | undefined>;
@@ -110,6 +111,15 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
         },
       })
+      .returning();
+    return user;
+  }
+
+  async updateUser(userId: string, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(users.id, userId))
       .returning();
     return user;
   }
@@ -233,6 +243,9 @@ export class DatabaseStorage implements IStorage {
         votes: (claim.votes as Vote[]) || [],
         evidence: (claim.evidence as { tool_name: string; content: string }[]) || [],
         ground_truth: claim.groundTruth,
+        resolved_by: claim.resolvedBy || undefined,
+        resolved_at: claim.resolvedAt?.toISOString() || undefined,
+        verification_sources: (claim.verificationSources as string[]) || [],
       });
     }
 

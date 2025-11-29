@@ -482,6 +482,9 @@ export async function registerRoutes(
         votes: claim.votes || [],
         evidence: claim.evidence || [],
         ground_truth: claim.groundTruth,
+        resolved_by: claim.resolvedBy,
+        resolved_at: claim.resolvedAt?.toISOString(),
+        verification_sources: claim.verificationSources || [],
       });
     } catch (error) {
       console.error("Error fetching claim:", error);
@@ -517,6 +520,54 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error adding vote note:", error);
       res.status(500).json({ error: "Failed to add vote note" });
+    }
+  });
+
+  // Award points to a user (called by FastAPI moderator agent after resolution)
+  app.post("/api/users/:userId/award-points", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      
+      const awardPointsSchema = z.object({
+        points: z.number(),
+        claimId: z.string().optional(),
+        wasCorrect: z.boolean(),
+      });
+
+      const parsed = awardPointsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ 
+          error: "Missing required fields",
+          details: parsed.error.errors 
+        });
+      }
+
+      const { points, claimId, wasCorrect } = parsed.data;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const newCorrect = (user.correctVotes || 0) + (wasCorrect ? 1 : 0);
+      const newIncorrect = (user.incorrectVotes || 0) + (wasCorrect ? 0 : 1);
+      const totalAttempts = newCorrect + newIncorrect;
+      const newPrecision = totalAttempts > 0 ? newCorrect / totalAttempts : 0.5;
+      
+      const updatedUser = await storage.updateUser(userId, {
+        points: (user.points || 0) + points,
+        correctVotes: newCorrect,
+        incorrectVotes: newIncorrect,
+        precision: newPrecision,
+        attempts: totalAttempts
+      });
+      
+      console.log(`Awarded ${points} points to ${userId} for claim ${claimId}`);
+      res.json({ success: true, newPoints: (user.points || 0) + points });
+      
+    } catch (error) {
+      console.error("Error awarding points:", error);
+      res.status(500).json({ error: "Failed to award points" });
     }
   });
 
