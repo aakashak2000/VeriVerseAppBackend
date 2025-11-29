@@ -1,17 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearch } from "wouter";
+import { useSearch, Link } from "wouter";
 import Layout from "@/components/Layout";
 import ClaimInputCard from "@/components/ClaimInputCard";
 import ResultCard from "@/components/ResultCard";
+import { Button } from "@/components/ui/button";
 import { createPrompt, getRun } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { RunState } from "@shared/schema";
-import { Loader2, Wifi, WifiOff } from "lucide-react";
+import { Loader2, Wifi, WifiOff, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function AskPage() {
   const searchString = useSearch();
   const [runId, setRunId] = useState<string | null>(null);
+  const [claimId, setClaimId] = useState<string | null>(null);
   const [runState, setRunState] = useState<RunState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
@@ -86,6 +88,7 @@ export default function AskPage() {
     setIsSubmitting(true);
     setRunState(null);
     setRunId(null);
+    setClaimId(null);
     setIsDemo(false);
     
     if (pollingRef.current) {
@@ -97,6 +100,9 @@ export default function AskPage() {
     const isDemoRun = response.run_id.startsWith("demo_run_");
     setIsDemo(isDemoRun);
     setRunId(response.run_id);
+    if (response.claim_id) {
+      setClaimId(response.claim_id);
+    }
     
     setRunState({
       run_id: response.run_id,
@@ -173,6 +179,22 @@ export default function AskPage() {
               runState={runState} 
               lastUpdated={lastUpdated || undefined}
             />
+          )}
+
+          {isCompleted && claimId && (
+            <div className="flex justify-center gap-3 mt-6" data-testid="completed-actions">
+              <Link href={`/claim/${claimId}`}>
+                <Button data-testid="view-claim-button">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View Claim Details
+                </Button>
+              </Link>
+              <Link href="/feed">
+                <Button variant="outline" data-testid="view-feed-button">
+                  View in Feed
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       </div>
