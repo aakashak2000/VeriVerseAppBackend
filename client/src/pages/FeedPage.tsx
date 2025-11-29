@@ -131,9 +131,11 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
       </CardHeader>
 
       <CardContent className="pb-3">
-        <p className="text-foreground mb-4 text-base leading-relaxed" data-testid={`claim-text-${claim.id}`}>
-          {claim.text}
-        </p>
+        <Link href={`/claim/${claim.id}`}>
+          <p className="text-foreground mb-4 text-base leading-relaxed hover:text-primary cursor-pointer" data-testid={`claim-text-${claim.id}`}>
+            {claim.text}
+          </p>
+        </Link>
 
         {claim.topics && claim.topics.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4" data-testid={`claim-topics-${claim.id}`}>
@@ -270,6 +272,11 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
           </div>
         ) : (
           <div className="flex items-center gap-2 flex-wrap">
+            <Link href={`/claim/${claim.id}`}>
+              <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`view-details-${claim.id}`}>
+                View Details
+              </Button>
+            </Link>
             {userId && (
               <Button
                 variant="ghost"
