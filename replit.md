@@ -72,10 +72,13 @@ Preferred communication style: Simple, everyday language.
 **Database ORM**: Drizzle ORM configured for PostgreSQL (via `@neondatabase/serverless` driver).
 
 **Schema** (defined in `shared/schema.ts`):
-- `users` table with extended profile fields: id, email, displayName, location, expertiseTags, profileImageUrl, points, precision, attempts, tier
-- `claims` table includes: id, userId, prompt, topics, location, status, aiSummary, thinking, confidence, votes, groundTruth
+- `users` table with extended profile fields: id, email, displayName, location, expertiseTags, profileImageUrl, points, precision, attempts, tier, correctVotes, incorrectVotes
+- `claims` table includes: id, userId, prompt, topics, location, status, aiSummary, thinking, confidence, votes, groundTruth, resolvedBy, resolvedAt, verificationSources
   - `thinking` (text): AI reasoning process showing evidence gathering steps
   - `groundTruth` (integer): Moderator verdict (1=TRUE, -1=FALSE, 0=MIXED, null=pending)
+  - `resolvedBy` (text): ID of moderator who resolved the claim
+  - `resolvedAt` (timestamp): When the claim was resolved
+  - `verificationSources` (text[]): URLs of sources used to verify the claim
 - TypeScript types for Vote, Evidence, RunState, LeaderboardEntry, Leaderboard, SignupUser, FeedClaim, and ClaimHistoryItem
 - Zod schemas for validation using `drizzle-zod`
 
@@ -86,6 +89,16 @@ Preferred communication style: Simple, everyday language.
   - Yellow: MIXED verdict (groundTruth = 0)
   - Gray: Awaiting Moderator Verdict (groundTruth = null)
 - Visible on both Feed page and Claim Detail page
+- Badge shows resolution time (e.g., "Verified: TRUE (2 hours ago)")
+- Voting is disabled once a claim is resolved
+- Resolved claims show notice: "This claim was resolved by moderator X time ago. Voting is now closed."
+
+**Vote Result Tracking**:
+- After moderator resolution, each vote displays outcome:
+  - "Correct prediction - Points awarded" (green with Award icon) for votes matching ground truth
+  - "Incorrect prediction" (red with XCircle icon) for votes not matching
+- Points are distributed via `/api/users/:userId/award-points` endpoint
+- User correctVotes/incorrectVotes counters track voting accuracy
 
 **AI Thinking Process**:
 - Claim Detail page shows collapsible "AI Thinking Process" section
