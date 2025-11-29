@@ -1,24 +1,21 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { fetchClaims, addCommunityNote, getStoredUserId, getLoggedInUser } from "@/lib/api";
-import type { FeedClaim, Vote, CommunityNoteWithAuthor } from "@shared/schema";
+import { fetchClaims, getStoredUserId, getLoggedInUser } from "@/lib/api";
+import type { FeedClaim, Vote } from "@shared/schema";
 import { 
   Clock, 
   MapPin, 
   ThumbsUp, 
   ThumbsDown, 
-  MessageSquare, 
   CheckCircle2, 
   AlertCircle,
-  Send,
   SlidersHorizontal,
   User,
   Sparkles
@@ -75,30 +72,39 @@ function getCredibilityBgColor(score: number): string {
   return "bg-red-50 dark:bg-red-900/20";
 }
 
+function getModeratorVerdictBadge(groundTruth: number | null | undefined) {
+  if (groundTruth === null || groundTruth === undefined) {
+    return (
+      <Badge className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-none" data-testid="verdict-pending">
+        <Clock className="h-3 w-3 mr-1" />Awaiting Moderator Verdict
+      </Badge>
+    );
+  }
+  
+  const verdictText = groundTruth === 1 ? "TRUE" : groundTruth === -1 ? "FALSE" : "MIXED";
+  const colorClasses = groundTruth === 1 
+    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
+    : groundTruth === -1
+    ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+    : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30";
+    
+  return (
+    <Badge className={`${colorClasses} border-none`} data-testid={`verdict-${verdictText.toLowerCase()}`}>
+      <CheckCircle2 className="h-3 w-3 mr-1" />Moderator Verified: {verdictText}
+    </Badge>
+  );
+}
+
 interface ClaimCardProps {
   claim: FeedClaim;
-  onAddNote: (claimId: string, note: string) => void;
-  isPending: boolean;
   userId: string | null;
 }
 
-function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
-  const [showNoteInput, setShowNoteInput] = useState(false);
-  const [noteText, setNoteText] = useState("");
+function ClaimCard({ claim, userId }: ClaimCardProps) {
   const [, setLocation] = useLocation();
-
-  const handleSubmitNote = () => {
-    if (!noteText.trim()) return;
-    onAddNote(claim.id, noteText.trim());
-    setNoteText("");
-    setShowNoteInput(false);
-  };
 
   const upvotes = claim.votes?.filter((v: Vote) => v.vote === 1).length || 0;
   const downvotes = claim.votes?.filter((v: Vote) => v.vote === -1).length || 0;
-
-  const isOwnClaim = claim.author?.id === userId;
-  const canAddNote = userId && !isOwnClaim;
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -141,7 +147,10 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
               </div>
             </div>
           </div>
-          {getStatusBadge(claim.status || "queued")}
+          <div className="flex flex-col gap-1 items-end">
+            {getStatusBadge(claim.status || "queued")}
+            {getModeratorVerdictBadge(claim.ground_truth)}
+          </div>
         </div>
       </CardHeader>
 
@@ -250,67 +259,17 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
       </CardContent>
 
       <CardFooter className="pt-0 flex-col items-stretch gap-3">
-        {showNoteInput ? (
-          <div className="w-full space-y-2" data-testid={`note-form-${claim.id}`}>
-            <Textarea
-              placeholder="Add your insight or context..."
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              className="resize-none"
-              rows={2}
-              data-testid={`note-input-${claim.id}`}
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setShowNoteInput(false);
-                  setNoteText("");
-                }}
-                data-testid={`note-cancel-${claim.id}`}
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSubmitNote}
-                disabled={!noteText.trim() || isPending}
-                data-testid={`note-submit-${claim.id}`}
-              >
-                <Send className="h-3 w-3 mr-1" />
-                {isPending ? "Posting..." : "Post Note"}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`view-details-${claim.id}`}>
-              View Details
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`view-details-${claim.id}`}>
+            View Details
+          </Button>
+          <Link href="/ask">
+            <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`verify-link-${claim.id}`}>
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Verify Similar
             </Button>
-            {canAddNote && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowNoteInput(true);
-                }}
-                data-testid={`add-note-${claim.id}`}
-              >
-                <MessageSquare className="h-4 w-4 mr-1" />
-                Add Note
-              </Button>
-            )}
-            <Link href="/ask">
-              <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`verify-link-${claim.id}`}>
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                Verify Similar
-              </Button>
-            </Link>
-          </div>
-        )}
+          </Link>
+        </div>
       </CardFooter>
     </Card>
   );
@@ -345,32 +304,17 @@ function ClaimCardSkeleton() {
 }
 
 export default function FeedPage() {
-  const queryClient = useQueryClient();
   const [sortBy, setSortBy] = useState<"relevant" | "latest">("relevant");
   const storedUserId = getStoredUserId();
   const loggedInUser = getLoggedInUser();
   const userId = loggedInUser?.user_id || storedUserId;
 
-  const { data: claims = [], isLoading, isError } = useQuery<FeedClaim[]>({
+  const { data: claims = [], isLoading, isError, refetch } = useQuery<FeedClaim[]>({
     queryKey: ["/api/claims", sortBy, userId],
     queryFn: () => fetchClaims({ userId: userId || undefined, sort: sortBy }),
     staleTime: 30000,
     refetchOnWindowFocus: false,
   });
-
-  const addNoteMutation = useMutation({
-    mutationFn: async ({ claimId, note }: { claimId: string; note: string }) => {
-      if (!userId) throw new Error("User not logged in");
-      await addCommunityNote(claimId, userId, note);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/claims"] });
-    },
-  });
-
-  const handleAddNote = (claimId: string, note: string) => {
-    addNoteMutation.mutate({ claimId, note });
-  };
 
   const isDemo = claims.length > 0 && claims[0].id?.startsWith("demo_");
 
@@ -420,7 +364,7 @@ export default function FeedPage() {
         ) : isError ? (
           <Card className="p-8 text-center" data-testid="feed-error">
             <p className="text-muted-foreground mb-4">Failed to load claims. Please try again.</p>
-            <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/claims"] })} data-testid="retry-button">
+            <Button onClick={() => refetch()} data-testid="retry-button">
               Retry
             </Button>
           </Card>
@@ -437,8 +381,6 @@ export default function FeedPage() {
               <ClaimCard
                 key={claim.id}
                 claim={claim}
-                onAddNote={handleAddNote}
-                isPending={addNoteMutation.isPending}
                 userId={userId}
               />
             ))}

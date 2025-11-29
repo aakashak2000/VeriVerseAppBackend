@@ -51,30 +51,21 @@ const EXPERTISE_SUGGESTIONS = [
   "Education",
 ];
 
-const ONBOARDING_SHOWN_KEY = "veriverse_onboarding_shown";
-
 export default function SignupPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState("");
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
 
   useEffect(() => {
     const existingUserId = getStoredUserId();
     if (existingUserId) {
       setLocation("/ask");
-      return;
-    }
-
-    const onboardingShown = sessionStorage.getItem(ONBOARDING_SHOWN_KEY);
-    if (!onboardingShown) {
-      setShowOnboarding(true);
     }
   }, [setLocation]);
 
   const handleOnboardingDismiss = () => {
-    sessionStorage.setItem(ONBOARDING_SHOWN_KEY, "true");
     setShowOnboarding(false);
   };
 

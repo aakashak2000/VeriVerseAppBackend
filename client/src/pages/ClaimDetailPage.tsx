@@ -3,14 +3,15 @@ import { useRoute, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { getClaim, submitVote, addCommunityNote, getLoggedInUser } from "@/lib/api";
-import type { FeedClaim, Vote, CommunityNoteWithAuthor, Evidence } from "@shared/schema";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getClaim, submitVote, getLoggedInUser } from "@/lib/api";
+import type { FeedClaim, Vote, Evidence } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft,
@@ -18,7 +19,6 @@ import {
   MapPin, 
   ThumbsUp, 
   ThumbsDown, 
-  MessageSquare, 
   CheckCircle2, 
   AlertCircle,
   Send,
@@ -26,7 +26,9 @@ import {
   Sparkles,
   ExternalLink,
   Search,
-  Globe
+  Globe,
+  ChevronDown,
+  Brain
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -87,6 +89,29 @@ function getEvidenceIcon(toolName: string) {
   }
 }
 
+function getModeratorVerdictBadge(groundTruth: number | null | undefined) {
+  if (groundTruth === null || groundTruth === undefined) {
+    return (
+      <Badge className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-none" data-testid="verdict-pending">
+        <Clock className="h-3 w-3 mr-1" />Awaiting Moderator Verdict
+      </Badge>
+    );
+  }
+  
+  const verdictText = groundTruth === 1 ? "TRUE" : groundTruth === -1 ? "FALSE" : "MIXED";
+  const colorClasses = groundTruth === 1 
+    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30"
+    : groundTruth === -1
+    ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
+    : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30";
+    
+  return (
+    <Badge className={`${colorClasses} border-none`} data-testid={`verdict-${verdictText.toLowerCase()}`}>
+      <CheckCircle2 className="h-3 w-3 mr-1" />Moderator Verified: {verdictText}
+    </Badge>
+  );
+}
+
 export default function ClaimDetailPage() {
   const [, params] = useRoute("/claim/:claimId");
   const claimId = params?.claimId;
@@ -98,8 +123,7 @@ export default function ClaimDetailPage() {
   const [showVoteForm, setShowVoteForm] = useState(false);
   const [voteValue, setVoteValue] = useState<1 | -1 | null>(null);
   const [voteRationale, setVoteRationale] = useState("");
-  const [showNoteForm, setShowNoteForm] = useState(false);
-  const [noteText, setNoteText] = useState("");
+  const [thinkingOpen, setThinkingOpen] = useState(false);
 
   const { data: claim, isLoading, isError } = useQuery<FeedClaim | null>({
     queryKey: ["/api/claims", claimId],
@@ -125,22 +149,6 @@ export default function ClaimDetailPage() {
     },
   });
 
-  const noteMutation = useMutation({
-    mutationFn: async (note: string) => {
-      if (!userId || !claimId) throw new Error("Not logged in");
-      await addCommunityNote(claimId, userId, note);
-    },
-    onSuccess: () => {
-      toast({ title: "Note added", description: "Your note has been added to this claim." });
-      queryClient.invalidateQueries({ queryKey: ["/api/claims", claimId] });
-      setShowNoteForm(false);
-      setNoteText("");
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to add note.", variant: "destructive" });
-    },
-  });
-
   const handleVoteClick = (vote: 1 | -1) => {
     setVoteValue(vote);
     setShowVoteForm(true);
@@ -151,16 +159,9 @@ export default function ClaimDetailPage() {
     voteMutation.mutate({ vote: voteValue, rationale: voteRationale.trim() });
   };
 
-  const handleSubmitNote = () => {
-    if (!noteText.trim()) return;
-    noteMutation.mutate(noteText.trim());
-  };
-
   const hasUserVoted = claim?.votes?.some((v: Vote) => v.user_id === userId);
   const isOwnClaim = claim?.author?.id === userId;
-  const hasUserAddedNote = claim?.community_notes?.some((n: CommunityNoteWithAuthor) => n.author.id === userId);
   const canVote = userId && !hasUserVoted && !isOwnClaim;
-  const canAddNote = userId && !isOwnClaim && !hasUserAddedNote;
 
   const upvotes = claim?.votes?.filter((v: Vote) => v.vote === 1).length || 0;
   const downvotes = claim?.votes?.filter((v: Vote) => v.vote === -1).length || 0;
@@ -240,7 +241,10 @@ export default function ClaimDetailPage() {
                   </div>
                 </div>
               </div>
-              {getStatusBadge(claim.status || "queued")}
+              <div className="flex flex-col gap-1 items-end">
+                {getStatusBadge(claim.status || "queued")}
+                {getModeratorVerdictBadge(claim.ground_truth)}
+              </div>
             </div>
 
             <h1 className="text-xl font-semibold text-foreground leading-relaxed" data-testid="claim-text">
@@ -299,6 +303,32 @@ export default function ClaimDetailPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {claim.thinking && (
+              <Collapsible open={thinkingOpen} onOpenChange={setThinkingOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="w-full justify-between text-muted-foreground hover:text-foreground"
+                    data-testid="thinking-toggle"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Brain className="h-4 w-4" />
+                      <span>AI Thinking Process</span>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${thinkingOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-3 p-4 bg-muted/30 rounded-lg border border-border/50" data-testid="thinking-content">
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {claim.thinking}
+                    </p>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {canVote && !showVoteForm && (
@@ -444,83 +474,7 @@ export default function ClaimDetailPage() {
               </div>
             )}
 
-            {claim.community_notes && claim.community_notes.length > 0 && (
-              <div className="border-t pt-4" data-testid="notes-section">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                  Community Notes ({claim.community_notes.length})
-                </h3>
-                <div className="space-y-2">
-                  {claim.community_notes.map((note: CommunityNoteWithAuthor) => (
-                    <div key={note.id} className="p-3 bg-muted/30 rounded-lg" data-testid={`note-${note.id}`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getInitials(note.author.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <Link href={`/profile/${note.author.id}`}>
-                          <span className="text-sm font-medium hover:text-primary cursor-pointer">{note.author.name}</span>
-                        </Link>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground">{note.note}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
-
-          <CardFooter className="flex-col items-stretch gap-3 border-t pt-4">
-            {canAddNote && !showNoteForm && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowNoteForm(true)}
-                data-testid="add-note-button"
-              >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Add Community Note
-              </Button>
-            )}
-
-            {showNoteForm && (
-              <div className="w-full space-y-3" data-testid="note-form">
-                <Textarea
-                  placeholder="Add your insight or context..."
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  className="resize-none"
-                  rows={3}
-                  data-testid="note-input"
-                />
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowNoteForm(false);
-                      setNoteText("");
-                    }}
-                    data-testid="note-cancel"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSubmitNote}
-                    disabled={!noteText.trim() || noteMutation.isPending}
-                    data-testid="note-submit"
-                  >
-                    <Send className="h-3 w-3 mr-1" />
-                    {noteMutation.isPending ? "Posting..." : "Post Note"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardFooter>
         </Card>
       </div>
     </Layout>

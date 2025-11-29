@@ -475,11 +475,13 @@ export async function registerRoutes(
         },
         ai_summary: claim.aiSummary,
         provisional_answer: claim.provisionalAnswer,
+        thinking: claim.thinking,
         confidence: claim.confidence,
         credibility_score: claim.credibilityScore,
         relevancy_score: claim.relevancyScore,
         votes: claim.votes || [],
-        community_notes: notes,
+        evidence: claim.evidence || [],
+        ground_truth: claim.groundTruth,
       });
     } catch (error) {
       console.error("Error fetching claim:", error);

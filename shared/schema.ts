@@ -46,11 +46,13 @@ export const claims = pgTable("claims", {
   status: varchar("status").default("queued"),
   provisionalAnswer: text("provisional_answer"),
   aiSummary: text("ai_summary"),
+  thinking: text("thinking"),
   confidence: real("confidence").default(0),
   credibilityScore: real("credibility_score").default(0),
   relevancyScore: real("relevancy_score").default(0),
   evidence: jsonb("evidence").default([]),
   votes: jsonb("votes").default([]),
+  groundTruth: integer("ground_truth"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -248,12 +250,13 @@ export type FeedClaim = {
   };
   ai_summary?: string;
   provisional_answer?: string;
+  thinking?: string;
   confidence: number;
   credibility_score: number;
   relevancy_score: number;
   votes: Vote[];
   evidence?: Evidence[];
-  community_notes: CommunityNoteWithAuthor[];
+  ground_truth?: number | null;
 };
 
 // Create claim request type

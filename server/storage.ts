@@ -164,7 +164,6 @@ export class DatabaseStorage implements IStorage {
 
     for (const claim of allClaims) {
       const author = claim.userId ? await this.getUser(claim.userId) : null;
-      const notes = await this.getClaimNotes(claim.id);
       const claimTopics = (claim.topics as string[]) || [];
       const claimLocation = claim.location?.toLowerCase() || "";
 
@@ -227,12 +226,13 @@ export class DatabaseStorage implements IStorage {
         },
         ai_summary: claim.aiSummary || undefined,
         provisional_answer: claim.provisionalAnswer || undefined,
+        thinking: claim.thinking || undefined,
         confidence: claim.confidence || 0,
         credibility_score: claim.credibilityScore || 0,
         relevancy_score: relevancyScore,
         votes: (claim.votes as Vote[]) || [],
         evidence: (claim.evidence as { tool_name: string; content: string }[]) || [],
-        community_notes: notes,
+        ground_truth: claim.groundTruth,
       });
     }
 
@@ -498,12 +498,14 @@ export class DatabaseStorage implements IStorage {
         status: "completed",
         aiSummary: "Verified by tech experts. Multiple sources confirm Apple's expansion plans in India with a focus on AI infrastructure.",
         provisionalAnswer: "This claim appears to be accurate. Apple has announced plans for significant infrastructure investment in India.",
+        thinking: "First, I searched for recent news about Apple's infrastructure investments in India. Found multiple credible sources including Economic Times and TechCrunch reporting on Apple's expansion plans. Then I cross-referenced with Apple's official announcements and found consistency with their stated commitment to Indian manufacturing and services. The Mumbai location aligns with Apple's existing presence in the region.",
         confidence: 0.87,
         credibilityScore: 0.89,
         relevancyScore: 0.92,
+        groundTruth: 1,
         votes: [
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified through industry sources", match_reasons: ["domain_expert", "location_match"] },
-          { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy", match_reasons: ["domain_expert"] },
+          { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with Apple's India strategy. Multiple tech sources confirm this.", match_reasons: ["domain_expert"] },
+          { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "AI", location: "Nagpur", vote: 1, weight: 0.96, rationale: "Verified through industry contacts and tech publications.", match_reasons: ["domain_expert", "topic_specialist"] },
         ],
       },
       {
@@ -515,11 +517,13 @@ export class DatabaseStorage implements IStorage {
         status: "completed",
         aiSummary: "Sports industry experts confirm BCCI's expansion plans. The league aims to tap into the growing cricket market in North America.",
         provisionalAnswer: "This claim is likely accurate based on recent BCCI announcements and cricket's growing popularity in the USA.",
+        thinking: "I analyzed recent BCCI press releases and sports news. The Major League Cricket (MLC) has been announced and is gaining traction. Multiple sources including ESPN Cricinfo confirm BCCI's involvement in US cricket expansion. The claim aligns with documented efforts to grow cricket in North America.",
         confidence: 0.82,
         credibilityScore: 0.85,
         relevancyScore: 0.78,
+        groundTruth: 1,
         votes: [
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Sports", location: "Mumbai", vote: 1, weight: 0.88, rationale: "Confirmed by multiple sports news outlets", match_reasons: ["domain_expert"] },
+          { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Sports", location: "Dehradun", vote: 1, weight: 0.85, rationale: "Confirmed by multiple sports news outlets and BCCI statements.", match_reasons: ["domain_knowledge"] },
         ],
       },
       {
@@ -531,12 +535,14 @@ export class DatabaseStorage implements IStorage {
         status: "completed",
         aiSummary: "Finance and AI experts validate this initiative. The RBI has been actively exploring fintech solutions for financial inclusion.",
         provisionalAnswer: "This claim is verified. RBI has announced pilot programs for AI-based credit scoring to improve rural lending.",
+        thinking: "Searched RBI's official publications and found references to fintech initiatives for financial inclusion. Cross-referenced with banking industry reports and found multiple programs using alternative credit scoring. The claim is consistent with RBI's stated goals for rural banking access.",
         confidence: 0.91,
         credibilityScore: 0.93,
         relevancyScore: 0.95,
+        groundTruth: 1,
         votes: [
-          { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Finance", location: "Nagpur", vote: 1, weight: 0.92, rationale: "Verified through RBI publications", match_reasons: ["domain_expert", "verified_professional"] },
-          { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends", match_reasons: ["domain_expert"] },
+          { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Finance", location: "Dehradun", vote: 1, weight: 0.88, rationale: "Consistent with fintech policy trends. RBI has been publishing research on this.", match_reasons: ["domain_expert"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.90, rationale: "Verified through fintech industry sources.", match_reasons: ["tech_expert"] },
         ],
       },
       {
@@ -548,12 +554,14 @@ export class DatabaseStorage implements IStorage {
         status: "completed",
         aiSummary: "Business and AI experts confirm OpenAI's expansion into the Indian enterprise market with localized solutions.",
         provisionalAnswer: "This claim is accurate. OpenAI has announced plans for an enterprise offering tailored to Indian businesses.",
+        thinking: "Analyzed OpenAI's recent announcements and partnership news. Found evidence of Microsoft Azure partnership expanding to India. Also found reports of enterprise pricing and features being made available in the Indian market. The claim is consistent with OpenAI's global expansion strategy.",
         confidence: 0.88,
         credibilityScore: 0.90,
         relevancyScore: 0.88,
+        groundTruth: 1,
         votes: [
-          { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "AI", location: "Nagpur", vote: 1, weight: 0.96, rationale: "Confirmed through tech industry sources", match_reasons: ["domain_expert", "topic_specialist"] },
-          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified via OpenAI announcements", match_reasons: ["domain_expert"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.95, rationale: "Verified via OpenAI announcements and tech industry sources.", match_reasons: ["domain_expert"] },
+          { user_id: "demo_parth", name: "Parth Joshi", domain: "Technology", location: "Gujarat", vote: 1, weight: 0.82, rationale: "Consistent with OpenAI's expansion strategy.", match_reasons: ["domain_expert"] },
         ],
       },
       {
@@ -565,12 +573,14 @@ export class DatabaseStorage implements IStorage {
         status: "completed",
         aiSummary: "Infrastructure and geography experts validate this claim. The expressway project has been officially announced.",
         provisionalAnswer: "This claim is verified. The Delhi-Dehradun expressway is under construction and will significantly reduce travel time.",
+        thinking: "Searched for official government infrastructure announcements. Found NHAI (National Highways Authority of India) documentation on the Delhi-Dehradun expressway project. Current travel time is approximately 6 hours, and the expressway is projected to reduce it to around 2.5-3 hours. The 2-hour reduction claim is accurate.",
         confidence: 0.85,
         credibilityScore: 0.87,
         relevancyScore: 0.75,
+        groundTruth: 1,
         votes: [
-          { user_id: "demo_shaurya", name: "Shaurya Negi", domain: "Geography", location: "Dehradun", vote: 1, weight: 0.80, rationale: "Verified as local resident", match_reasons: ["domain_expert", "location_match"] },
-          { user_id: "demo_parth", name: "Parth Joshi", domain: "India", location: "Gujarat", vote: 1, weight: 0.80, rationale: "Confirmed through government sources", match_reasons: ["topic_specialist"] },
+          { user_id: "demo_parth", name: "Parth Joshi", domain: "India", location: "Gujarat", vote: 1, weight: 0.80, rationale: "Confirmed through government sources. Project officially inaugurated.", match_reasons: ["topic_specialist"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "Technology", location: "Mumbai", vote: 1, weight: 0.75, rationale: "Verified through infrastructure news sources.", match_reasons: ["general_knowledge"] },
         ],
       },
       {
@@ -582,11 +592,14 @@ export class DatabaseStorage implements IStorage {
         status: "completed",
         aiSummary: "Food safety experts confirm new regulations are being implemented for street vendors in major Indian cities.",
         provisionalAnswer: "This claim is accurate. FSSAI has announced new hygiene certification requirements for street food vendors.",
+        thinking: "Reviewed FSSAI (Food Safety and Standards Authority of India) guidelines and announcements. Found the 'Clean Street Food Hub' initiative and new certification requirements for street vendors. The 2026 timeline is partially accurate - implementation is phased across different cities. Mumbai is among the priority cities.",
         confidence: 0.79,
         credibilityScore: 0.81,
         relevancyScore: 0.70,
+        groundTruth: 0,
         votes: [
-          { user_id: "demo_parth", name: "Parth Joshi", domain: "Food", location: "Gujarat", vote: 1, weight: 0.76, rationale: "Verified through FSSAI guidelines", match_reasons: ["domain_expert"] },
+          { user_id: "demo_aneesha", name: "Aneesha Manke", domain: "Business", location: "Nagpur", vote: 1, weight: 0.85, rationale: "FSSAI guidelines confirm new requirements.", match_reasons: ["regulatory_knowledge"] },
+          { user_id: aakashUserId, name: "Aakash Kumar", domain: "India", location: "Mumbai", vote: -1, weight: 0.80, rationale: "Timeline is unclear - implementation is phased, not a hard 2026 deadline.", match_reasons: ["location_match"] },
         ],
       },
       {
@@ -598,9 +611,11 @@ export class DatabaseStorage implements IStorage {
         status: "awaiting_votes",
         aiSummary: "Limited expert coverage for this topic. Claim requires more verification from agricultural specialists.",
         provisionalAnswer: "This claim needs more verification. Our experts have limited coverage in Brazilian agriculture.",
+        thinking: "Searched for data on Brazilian organic agriculture but found limited authoritative sources. Some reports suggest growth in organic farming but specific percentage claims are difficult to verify. Would need specialized agricultural data sources to confirm the 40% figure.",
         confidence: 0.45,
         credibilityScore: 0.40,
         relevancyScore: 0.25,
+        groundTruth: null,
         votes: [],
       },
       {
@@ -612,26 +627,17 @@ export class DatabaseStorage implements IStorage {
         status: "awaiting_votes",
         aiSummary: "No matching experts found. This claim is outside our community's expertise areas.",
         provisionalAnswer: "This claim cannot be verified. Our community lacks experts in Scandinavian fishing policy.",
+        thinking: "This claim appears to be an overstatement. While there are discussions about sustainable fishing policies in Scandinavian countries, a complete ban on commercial fishing by 2030 is not supported by any official policy documents I could find. Nordic countries have strict fishing regulations but no plans for a complete ban.",
         confidence: 0.30,
         credibilityScore: 0.25,
         relevancyScore: 0.15,
+        groundTruth: -1,
         votes: [],
       },
     ];
 
     for (const claim of demoClaims) {
       await db.insert(claims).values(claim).onConflictDoNothing();
-    }
-
-    const demoNotes = [
-      { id: "note_1", claimId: "claim_tech_apple", userId: "demo_parth", note: "I've seen construction activity near the proposed site. This seems legit." },
-      { id: "note_2", claimId: "claim_finance_rbi", userId: "demo_aneesha", note: "RBI has been actively publishing research on this. The pilot is already underway in select states." },
-      { id: "note_3", claimId: "claim_business_openai", userId: aakashUserId, note: "Spoke with someone at an OpenAI partner company. They confirmed the India plans." },
-      { id: "note_4", claimId: "claim_geo_expressway", userId: "demo_parth", note: "The project was officially inaugurated last month. Construction is on schedule." },
-    ];
-
-    for (const note of demoNotes) {
-      await db.insert(communityNotes).values(note).onConflictDoNothing();
     }
 
     console.log("Demo data seeded successfully!");
