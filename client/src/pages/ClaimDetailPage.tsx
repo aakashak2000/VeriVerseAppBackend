@@ -29,7 +29,9 @@ import {
   Globe,
   ChevronDown,
   Brain,
-  MessageSquare
+  MessageSquare,
+  Award,
+  XCircle
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -162,7 +164,8 @@ export default function ClaimDetailPage() {
 
   const hasUserVoted = claim?.votes?.some((v: Vote) => v.user_id === userId);
   const isOwnClaim = claim?.author?.id === userId;
-  const canVote = userId && !hasUserVoted && !isOwnClaim;
+  const isResolved = claim?.ground_truth !== null && claim?.ground_truth !== undefined;
+  const canVote = userId && !hasUserVoted && !isOwnClaim && !isResolved;
 
   const upvotes = claim?.votes?.filter((v: Vote) => v.vote === 1).length || 0;
   const downvotes = claim?.votes?.filter((v: Vote) => v.vote === -1).length || 0;
@@ -372,6 +375,20 @@ export default function ClaimDetailPage() {
               </Collapsible>
             ) : null}
 
+            {isResolved && (
+              <div className="border-t pt-4" data-testid="resolved-notice">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>
+                    This claim was resolved by moderator
+                    {claim.resolved_at && (
+                      <> {formatDistanceToNow(new Date(claim.resolved_at), { addSuffix: true })}</>
+                    )}. Voting is now closed.
+                  </span>
+                </div>
+              </div>
+            )}
+
             {canVote && !showVoteForm && (
               <div className="border-t pt-4" data-testid="vote-buttons">
                 <h3 className="text-sm font-semibold text-muted-foreground mb-3">Cast Your Vote</h3>
@@ -472,45 +489,68 @@ export default function ClaimDetailPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {claim.votes.map((vote: Vote) => (
-                    <div 
-                      key={vote.user_id} 
-                      className={`rounded-lg p-3 ${vote.vote === 1 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}
-                      data-testid={`vote-${vote.user_id}`}
-                    >
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                            {getInitials(vote.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <Link href={`/profile/${vote.user_id}`}>
-                          <span className="text-sm font-medium hover:text-primary cursor-pointer">{vote.name}</span>
-                        </Link>
-                        <Badge variant="secondary" className="text-xs">{vote.domain}</Badge>
-                        {vote.location && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {vote.location}
-                          </span>
+                  {claim.votes.map((vote: Vote) => {
+                    const voteWasCorrect = isResolved && claim.ground_truth !== undefined && claim.ground_truth !== null
+                      ? (vote.vote === 1 && claim.ground_truth === 1) || (vote.vote === -1 && claim.ground_truth === -1)
+                      : null;
+                    
+                    return (
+                      <div 
+                        key={vote.user_id} 
+                        className={`rounded-lg p-3 ${vote.vote === 1 ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}
+                        data-testid={`vote-${vote.user_id}`}
+                      >
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                              {getInitials(vote.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <Link href={`/profile/${vote.user_id}`}>
+                            <span className="text-sm font-medium hover:text-primary cursor-pointer">{vote.name}</span>
+                          </Link>
+                          <Badge variant="secondary" className="text-xs">{vote.domain}</Badge>
+                          {vote.location && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {vote.location}
+                            </span>
+                          )}
+                          {vote.vote === 1 ? (
+                            <ThumbsUp className="h-4 w-4 text-green-600 dark:text-green-400 ml-auto" />
+                          ) : (
+                            <ThumbsDown className="h-4 w-4 text-red-600 dark:text-red-400 ml-auto" />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{vote.rationale}</p>
+                        {vote.note && (
+                          <div className="mt-2 pt-2 border-t border-border/50">
+                            <div className="flex items-start gap-2">
+                              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-foreground">{vote.note}</p>
+                            </div>
+                          </div>
                         )}
-                        {vote.vote === 1 ? (
-                          <ThumbsUp className="h-4 w-4 text-green-600 dark:text-green-400 ml-auto" />
-                        ) : (
-                          <ThumbsDown className="h-4 w-4 text-red-600 dark:text-red-400 ml-auto" />
+                        {voteWasCorrect !== null && (
+                          <div className="mt-2 pt-2 border-t border-border/50">
+                            <div className={`flex items-center gap-1.5 text-xs ${voteWasCorrect ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} data-testid={`vote-result-${vote.user_id}`}>
+                              {voteWasCorrect ? (
+                                <>
+                                  <Award className="h-3.5 w-3.5" />
+                                  <span className="font-medium">Correct prediction - Points awarded</span>
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="h-3.5 w-3.5" />
+                                  <span className="font-medium">Incorrect prediction</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{vote.rationale}</p>
-                      {vote.note && (
-                        <div className="mt-2 pt-2 border-t border-border/50">
-                          <div className="flex items-start gap-2">
-                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-foreground">{vote.note}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

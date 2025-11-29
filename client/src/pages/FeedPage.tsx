@@ -73,7 +73,7 @@ function getCredibilityBgColor(score: number): string {
   return "bg-red-50 dark:bg-red-900/20";
 }
 
-function getModeratorVerdictBadge(groundTruth: number | null | undefined) {
+function getModeratorVerdictBadge(groundTruth: number | null | undefined, resolvedAt?: string) {
   if (groundTruth === null || groundTruth === undefined) {
     return (
       <Badge className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 border-none" data-testid="verdict-pending">
@@ -88,10 +88,14 @@ function getModeratorVerdictBadge(groundTruth: number | null | undefined) {
     : groundTruth === -1
     ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30"
     : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30";
+  
+  const resolvedText = resolvedAt 
+    ? ` (${formatDistanceToNow(new Date(resolvedAt), { addSuffix: true })})` 
+    : "";
     
   return (
     <Badge className={`${colorClasses} border-none`} data-testid={`verdict-${verdictText.toLowerCase()}`}>
-      <CheckCircle2 className="h-3 w-3 mr-1" />Moderator Verified: {verdictText}
+      <CheckCircle2 className="h-3 w-3 mr-1" />Verified: {verdictText}{resolvedText}
     </Badge>
   );
 }
@@ -150,7 +154,7 @@ function ClaimCard({ claim, userId }: ClaimCardProps) {
           </div>
           <div className="flex flex-col gap-1 items-end">
             {getStatusBadge(claim.status || "queued")}
-            {getModeratorVerdictBadge(claim.ground_truth)}
+            {getModeratorVerdictBadge(claim.ground_truth, claim.resolved_at)}
           </div>
         </div>
       </CardHeader>
