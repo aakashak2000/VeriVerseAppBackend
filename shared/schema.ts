@@ -165,6 +165,14 @@ export type Evidence = {
   content: string;
 };
 
+export type AIStep = {
+  step: number;
+  thought: string;
+  tool: string;
+  tool_input: string;
+  tool_output: string;
+};
+
 export type RunState = {
   run_id: string;
   status: "queued" | "in_progress" | "awaiting_votes" | "completed";
@@ -172,6 +180,8 @@ export type RunState = {
   confidence: number;
   votes: Vote[];
   evidence: Evidence[];
+  steps?: AIStep[];
+  citations?: string[];
 };
 
 export type LeaderboardEntry = {
@@ -251,6 +261,8 @@ export type FeedClaim = {
   ai_summary?: string;
   provisional_answer?: string;
   thinking?: string;
+  steps?: AIStep[];
+  citations?: string[];
   confidence: number;
   credibility_score: number;
   relevancy_score: number;

@@ -149,6 +149,34 @@ const createDemoRunState = (runId: string, prompt: string): RunState => ({
         "Verified claim appears in official press releases and government documents.",
     },
   ],
+  steps: [
+    {
+      step: 1,
+      thought: "I need to verify this claim by searching for official sources and news articles.",
+      tool: "web_search",
+      tool_input: "{'query': '" + prompt.substring(0, 30) + "'}",
+      tool_output: "Found 5 relevant results from major news outlets and official sources.",
+    },
+    {
+      step: 2,
+      thought: "Let me cross-reference with Wikipedia for background context.",
+      tool: "wikipedia",
+      tool_input: "{'query': 'related topic'}",
+      tool_output: "Found relevant background information that provides context for this claim.",
+    },
+    {
+      step: 3,
+      thought: "I should verify the specific details mentioned in the claim.",
+      tool: "web_search",
+      tool_input: "{'query': 'verification details'}",
+      tool_output: "Multiple sources confirm the core claims, though some details vary.",
+    },
+  ],
+  citations: [
+    "https://reuters.com/article/example",
+    "https://bbc.com/news/example",
+    "https://wikipedia.org/wiki/example",
+  ],
 });
 
 let demoPromptCounter = 0;
@@ -456,7 +484,6 @@ const DEMO_FEED: FeedClaim[] = [
         note: "I've seen construction activity near the proposed site in Bangalore.",
       },
     ],
-    community_notes: [],
   },
   {
     id: "demo_claim_2",
@@ -502,7 +529,6 @@ const DEMO_FEED: FeedClaim[] = [
         note: "This aligns with the Digital India financial inclusion initiatives I've been following.",
       },
     ],
-    community_notes: [],
   },
   {
     id: "demo_claim_3",
@@ -537,7 +563,6 @@ const DEMO_FEED: FeedClaim[] = [
         note: "Major League Cricket's success seems to be driving BCCI's interest in the US market.",
       },
     ],
-    community_notes: [],
   },
   {
     id: "demo_claim_4",
@@ -560,7 +585,6 @@ const DEMO_FEED: FeedClaim[] = [
     credibility_score: 0.4,
     relevancy_score: 0.25,
     votes: [],
-    community_notes: [],
   },
 ];
 

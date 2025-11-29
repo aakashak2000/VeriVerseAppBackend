@@ -6,18 +6,20 @@ import ResultCard from "@/components/ResultCard";
 import { Button } from "@/components/ui/button";
 import { createPrompt, getRun } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import type { RunState } from "@shared/schema";
-import { Loader2, Wifi, WifiOff, ExternalLink } from "lucide-react";
+import type { RunState, AIStep } from "@shared/schema";
+import { Loader2, Wifi, WifiOff, ExternalLink, Brain, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function AskPage() {
   const searchString = useSearch();
   const [runId, setRunId] = useState<string | null>(null);
   const [claimId, setClaimId] = useState<string | null>(null);
   const [runState, setRunState] = useState<RunState | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const isCompleted = runState?.status === "completed";
 
@@ -85,16 +87,27 @@ export default function AskPage() {
   }, [runId, isDemo, isCompleted, isConnected, pollRunStatus]);
 
   const handleSubmit = async (claim: string) => {
-    setIsSubmitting(true);
     setRunState(null);
     setRunId(null);
     setClaimId(null);
     setIsDemo(false);
+    setThinkingOpen(false);
     
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
+
+    setIsProcessing(true);
+    setRunState({
+      run_id: "pending",
+      status: "in_progress",
+      provisional_answer: "",
+      confidence: 0,
+      votes: [],
+      evidence: [],
+    });
+    setLastUpdated(new Date());
 
     const response = await createPrompt(claim);
     const isDemoRun = response.run_id.startsWith("demo_run_");
@@ -104,20 +117,9 @@ export default function AskPage() {
       setClaimId(response.claim_id);
     }
     
-    setRunState({
-      run_id: response.run_id,
-      status: response.status as RunState["status"],
-      provisional_answer: "",
-      confidence: 0,
-      votes: [],
-      evidence: [],
-    });
-    setLastUpdated(new Date());
-    
-    // Fetch initial state
     await pollRunStatus(response.run_id, isDemoRun);
     
-    setIsSubmitting(false);
+    setIsProcessing(false);
   };
 
   useEffect(() => {
@@ -165,20 +167,80 @@ export default function AskPage() {
         </div>
 
         <div className="space-y-6">
-          <ClaimInputCard onSubmit={handleSubmit} isLoading={isSubmitting} />
+          <ClaimInputCard onSubmit={handleSubmit} isLoading={isProcessing} />
 
-          {isSubmitting && !runState && (
-            <div className="flex items-center justify-center py-12 text-muted-foreground" data-testid="initial-loading">
+          {isProcessing && runState?.status === "in_progress" && !runState.provisional_answer && (
+            <div className="flex items-center justify-center py-12 text-muted-foreground" data-testid="processing-loading">
               <Loader2 className="h-6 w-6 animate-spin mr-3" />
-              <span>Submitting claim for verification...</span>
+              <span>Agent doing its magic...</span>
             </div>
           )}
 
-          {runState && (
-            <ResultCard 
-              runState={runState} 
-              lastUpdated={lastUpdated || undefined}
-            />
+          {runState && runState.provisional_answer && (
+            <>
+              <ResultCard 
+                runState={runState} 
+                lastUpdated={lastUpdated || undefined}
+              />
+
+              {runState.steps && runState.steps.length > 0 && (
+                <Collapsible open={thinkingOpen} onOpenChange={setThinkingOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full justify-between text-muted-foreground hover:text-foreground"
+                      data-testid="thinking-toggle"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Brain className="h-4 w-4" />
+                        <span>View AI Thinking Process</span>
+                      </div>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${thinkingOpen ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-3 p-4 bg-muted/30 rounded-lg border border-border/50 space-y-4" data-testid="thinking-content">
+                      {runState.steps.map((s: AIStep) => (
+                        <div key={s.step} className="space-y-1" data-testid={`step-${s.step}`}>
+                          <p className="text-sm font-medium text-foreground">
+                            <span className="text-primary">Step {s.step}:</span> {s.thought}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">Tool:</span> {s.tool}
+                          </p>
+                          {s.tool_output && (
+                            <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded mt-1 line-clamp-3">
+                              <span className="font-medium">Output:</span> {s.tool_output}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {runState.citations && runState.citations.length > 0 && (
+                        <div className="pt-3 border-t border-border/50" data-testid="citations-section">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Citations:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {runState.citations.map((url, i) => (
+                              <a 
+                                key={i} 
+                                href={url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline truncate max-w-[200px]"
+                                data-testid={`citation-${i}`}
+                              >
+                                {url}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+            </>
           )}
 
           {isCompleted && claimId && (

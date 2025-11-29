@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { getClaim, submitVote, getLoggedInUser } from "@/lib/api";
-import type { FeedClaim, Vote, Evidence } from "@shared/schema";
+import type { FeedClaim, Vote, Evidence, AIStep } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft,
@@ -28,7 +28,8 @@ import {
   Search,
   Globe,
   ChevronDown,
-  Brain
+  Brain,
+  MessageSquare
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -305,7 +306,7 @@ export default function ClaimDetailPage() {
               </div>
             )}
 
-            {claim.thinking && (
+            {(claim.steps && claim.steps.length > 0) || claim.thinking ? (
               <Collapsible open={thinkingOpen} onOpenChange={setThinkingOpen}>
                 <CollapsibleTrigger asChild>
                   <Button 
@@ -316,20 +317,60 @@ export default function ClaimDetailPage() {
                   >
                     <div className="flex items-center gap-2">
                       <Brain className="h-4 w-4" />
-                      <span>AI Thinking Process</span>
+                      <span>View AI Thinking Process</span>
                     </div>
                     <ChevronDown className={`h-4 w-4 transition-transform ${thinkingOpen ? 'rotate-180' : ''}`} />
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="mt-3 p-4 bg-muted/30 rounded-lg border border-border/50" data-testid="thinking-content">
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {claim.thinking}
-                    </p>
+                  <div className="mt-3 p-4 bg-muted/30 rounded-lg border border-border/50 space-y-4" data-testid="thinking-content">
+                    {claim.steps && claim.steps.length > 0 ? (
+                      <>
+                        {claim.steps.map((s: AIStep) => (
+                          <div key={s.step} className="space-y-1" data-testid={`step-${s.step}`}>
+                            <p className="text-sm font-medium text-foreground">
+                              <span className="text-primary">Step {s.step}:</span> {s.thought}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Tool:</span> {s.tool}
+                            </p>
+                            {s.tool_output && (
+                              <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded mt-1 line-clamp-3">
+                                <span className="font-medium">Output:</span> {s.tool_output}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                        
+                        {claim.citations && claim.citations.length > 0 && (
+                          <div className="pt-3 border-t border-border/50" data-testid="citations-section">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Citations:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {claim.citations.map((url, i) => (
+                                <a 
+                                  key={i} 
+                                  href={url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline truncate max-w-[200px]"
+                                  data-testid={`citation-${i}`}
+                                >
+                                  {url}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {claim.thinking}
+                      </p>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            )}
+            ) : null}
 
             {canVote && !showVoteForm && (
               <div className="border-t pt-4" data-testid="vote-buttons">
