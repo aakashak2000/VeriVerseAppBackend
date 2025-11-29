@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -18,7 +27,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { createUser, getStoredUserId } from "@/lib/api";
-import { Loader2, X, Plus } from "lucide-react";
+import { Loader2, X, Plus, MapPin, Briefcase, Trophy } from "lucide-react";
 
 const signupFormSchema = z.object({
   displayName: z.string().min(1, "Name is required"),
@@ -42,18 +51,32 @@ const EXPERTISE_SUGGESTIONS = [
   "Education",
 ];
 
+const ONBOARDING_SHOWN_KEY = "veriverse_onboarding_shown";
+
 export default function SignupPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     const existingUserId = getStoredUserId();
     if (existingUserId) {
       setLocation("/ask");
+      return;
+    }
+
+    const onboardingShown = sessionStorage.getItem(ONBOARDING_SHOWN_KEY);
+    if (!onboardingShown) {
+      setShowOnboarding(true);
     }
   }, [setLocation]);
+
+  const handleOnboardingDismiss = () => {
+    sessionStorage.setItem(ONBOARDING_SHOWN_KEY, "true");
+    setShowOnboarding(false);
+  };
 
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupFormSchema),
@@ -118,6 +141,55 @@ export default function SignupPage() {
 
   return (
     <Layout>
+      <AlertDialog open={showOnboarding} onOpenChange={setShowOnboarding}>
+        <AlertDialogContent className="max-w-md" data-testid="onboarding-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold text-center" data-testid="onboarding-title">
+              Welcome to VeriVerse
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 pt-2">
+                <p className="text-center text-muted-foreground">
+                  Before you get started, here's why your profile matters:
+                </p>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <MapPin className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground">Location builds credibility</p>
+                      <p className="text-sm text-muted-foreground">Your location helps verify regional expertise and connect you with local claims.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Briefcase className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground">Expertise fast-tracks you</p>
+                      <p className="text-sm text-muted-foreground">Adding expertise areas gives your votes more weight and helps you earn expert status faster.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Trophy className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground">Accuracy boosts your rank</p>
+                      <p className="text-sm text-muted-foreground">Contribute accurate information to climb the leaderboard and maintain your reputation.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogAction 
+              onClick={handleOnboardingDismiss}
+              className="w-full"
+              data-testid="onboarding-dismiss"
+            >
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-md mx-auto px-4 py-12">
         <Card className="border">
           <CardHeader className="text-center">

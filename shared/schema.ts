@@ -186,6 +186,7 @@ export type Leaderboard = { entries: LeaderboardEntry[] };
 export type PromptResponse = {
   run_id: string;
   status: string;
+  claim_id?: string;
 };
 
 // User history response type
