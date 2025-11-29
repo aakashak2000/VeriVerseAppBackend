@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,7 @@ interface ClaimCardProps {
 function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const [, setLocation] = useLocation();
 
   const handleSubmitNote = () => {
     if (!noteText.trim()) return;
@@ -95,10 +96,24 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
 
   const upvotes = claim.votes?.filter((v: Vote) => v.vote === 1).length || 0;
   const downvotes = claim.votes?.filter((v: Vote) => v.vote === -1).length || 0;
-  const topVoter = claim.votes?.[0];
+
+  const isOwnClaim = claim.author?.id === userId;
+  const canAddNote = userId && !isOwnClaim;
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a') || target.closest('textarea')) {
+      return;
+    }
+    setLocation(`/claim/${claim.id}`);
+  };
 
   return (
-    <Card className="mb-4 hover-elevate" data-testid={`claim-card-${claim.id}`}>
+    <Card 
+      className="mb-4 hover-elevate cursor-pointer" 
+      data-testid={`claim-card-${claim.id}`}
+      onClick={handleCardClick}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -131,11 +146,9 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
       </CardHeader>
 
       <CardContent className="pb-3">
-        <Link href={`/claim/${claim.id}`}>
-          <p className="text-foreground mb-4 text-base leading-relaxed hover:text-primary cursor-pointer" data-testid={`claim-text-${claim.id}`}>
-            {claim.text}
-          </p>
-        </Link>
+        <p className="text-foreground mb-4 text-base leading-relaxed" data-testid={`claim-text-${claim.id}`}>
+          {claim.text}
+        </p>
 
         {claim.topics && claim.topics.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-4" data-testid={`claim-topics-${claim.id}`}>
@@ -272,17 +285,18 @@ function ClaimCard({ claim, onAddNote, isPending, userId }: ClaimCardProps) {
           </div>
         ) : (
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/claim/${claim.id}`}>
-              <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`view-details-${claim.id}`}>
-                View Details
-              </Button>
-            </Link>
-            {userId && (
+            <Button variant="ghost" size="sm" className="text-muted-foreground" data-testid={`view-details-${claim.id}`}>
+              View Details
+            </Button>
+            {canAddNote && (
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-muted-foreground"
-                onClick={() => setShowNoteInput(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNoteInput(true);
+                }}
                 data-testid={`add-note-${claim.id}`}
               >
                 <MessageSquare className="h-4 w-4 mr-1" />
