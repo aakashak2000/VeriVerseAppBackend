@@ -21,11 +21,12 @@ Preferred communication style: Simple, everyday language.
 
 **Routing**: Client-side routing implemented with Wouter library. Main routes:
 - `/` - Landing page with hero section and product overview
-- `/signup` - User onboarding with profile creation (name, location, expertise tags)
+- `/signup` - User onboarding with profile creation (shows onboarding dialog every visit)
 - `/ask` - Interactive claim verification interface (accessible without signup)
 - `/history` - User's past claims with demo fallback for new users
 - `/verify` - Community leaderboard and trust board with scoring explanation
-- `/feed` - Community feed showing all claims with sorting (relevant/latest), expert votes, and community notes
+- `/feed` - Community feed showing all claims with sorting (relevant/latest), expert votes, and moderator verdict badges
+- `/claim/:id` - Individual claim detail page with AI thinking process, moderator verdicts, and expert votes
 
 **State Management**: React Query (@tanstack/react-query) for server state management with configured defaults for refetching behavior and stale time.
 
@@ -72,8 +73,24 @@ Preferred communication style: Simple, everyday language.
 
 **Schema** (defined in `shared/schema.ts`):
 - `users` table with extended profile fields: id, email, displayName, location, expertiseTags, profileImageUrl, points, precision, attempts, tier
-- TypeScript types for Vote, Evidence, RunState, LeaderboardEntry, Leaderboard, SignupUser, and ClaimHistoryItem
+- `claims` table includes: id, userId, prompt, topics, location, status, aiSummary, thinking, confidence, votes, groundTruth
+  - `thinking` (text): AI reasoning process showing evidence gathering steps
+  - `groundTruth` (integer): Moderator verdict (1=TRUE, -1=FALSE, 0=MIXED, null=pending)
+- TypeScript types for Vote, Evidence, RunState, LeaderboardEntry, Leaderboard, SignupUser, FeedClaim, and ClaimHistoryItem
 - Zod schemas for validation using `drizzle-zod`
+
+**Moderator Verdict System**:
+- Claims display color-coded moderator verdict badges:
+  - Green: Verified TRUE (groundTruth = 1)
+  - Red: Verified FALSE (groundTruth = -1)
+  - Yellow: MIXED verdict (groundTruth = 0)
+  - Gray: Awaiting Moderator Verdict (groundTruth = null)
+- Visible on both Feed page and Claim Detail page
+
+**AI Thinking Process**:
+- Claim Detail page shows collapsible "AI Thinking Process" section
+- Displays the AI's reasoning steps and evidence gathering process
+- Uses Radix Collapsible component with toggle button
 
 **User Authentication**:
 - Password-based login using login_id and passwordHash fields
